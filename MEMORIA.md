@@ -3,7 +3,7 @@
 Este archivo es el estado del proyecto. Si alguien (o alguna IA) empieza a
 trabajar acá de cero, esto es lo primero que tiene que leer.
 
-Última actualización: **1 de septiembre de 2026** (tercera tanda del día)
+Última actualización: **1 de septiembre de 2026** (cuarta tanda del día)
 
 ---
 
@@ -37,10 +37,10 @@ finanzas-martu-felipe/
 │   └── finanzas.html   ← LA APP ENTERA. Un solo archivo, se abre con doble clic.
 ├── motor/              ← las pruebas de la matemática
 │   ├── motor.js        ← NO tiene el motor: lo LEE de app/finanzas.html
-│   ├── motor.test.js   ← 138 pruebas de la matemática
+│   ├── motor.test.js   ← 148 pruebas de la matemática
 │   ├── reglas.test.js  ← 9 pruebas de que el motor siga siendo matemática pura
 │   └── package.json
-└── pruebas/            ← 62 pruebas que manejan la app en un navegador de verdad
+└── pruebas/            ← 74 pruebas que manejan la app en un navegador de verdad
     ├── app.test.js
     ├── package.json
     └── LEEME.md
@@ -49,11 +49,11 @@ finanzas-martu-felipe/
 **Para correr las pruebas — las dos tandas, siempre antes de publicar:**
 
 ```bash
-cd motor && node --test        # 147 pruebas · las CUENTAS · tarda 1 segundo
-cd pruebas && npm test         # 62 pruebas · los BOTONES · tarda unos minutos
+cd motor && node --test        # 157 pruebas · las CUENTAS · tarda 1 segundo
+cd pruebas && npm test         # 74 pruebas · los BOTONES · tarda unos minutos
 ```
 
-Total: **209 en verde**. Si alguna se pone en rojo, algo se rompió: no publicar.
+Total: **231 en verde**. Si alguna se pone en rojo, algo se rompió: no publicar.
 
 (Las de `pruebas/` necesitan `npm install` la primera vez. Las de `motor/` no
 necesitan instalar nada.)
@@ -133,6 +133,10 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
   fijos), con cuánto queda libre antes de gastar nada. No es un borrador ni una
   estimación: es plata que ya está comprometida.
 
+  ⚠️ **Se muestra SIEMPRE, aunque esté todo en cero.** Escondido cuando no hay
+  datos es escondido justo cuando hace falta explicar para qué sirve. Hay una
+  prueba que lo vigila.
+
 - **Tarjetas** — las 4, en este orden exacto:
   1. BBVA BLACK VISA
   2. BBVA BLACK MASTERCARD
@@ -164,6 +168,11 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
   Al cargar un gasto se elige **cómo se paga**: un solo pago, en cuotas, o
   **gasto fijo** (se repite todos los meses). La lista se separa en **fijos y
   variables**, con el total de cada grupo y un gráfico por categoría.
+
+  **Mientras cargás el gasto, un cartel dice cómo te pega en el mes que viene**:
+  cuánto suma, de cuánto a cuánto pasa lo ya comprometido y cuánto te quedaría
+  libre. En rojo si el mes deja de cerrar. Es lo que Martu más quería: *"hacer un
+  gasto hoy sabiendo cómo me impacta el mes que viene"*.
 
   Las **categorías son editables** y se guardan: vienen Alquiler, Expensas,
   Tarjeta, Psicóloga, Cerámica, Servicios, Internet y celular, Gimnasio,
@@ -226,6 +235,41 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
 ---
 
 ## Historial
+
+### 1 de septiembre de 2026 — Lo que Martu pedía y no veía
+
+Martu avisó que en Inicio no aparecía lo que había pedido. Se auditó la app
+**vacía, como la ve ella** (sin sueldo, sin gastos, tarjetas sin configurar) y
+aparecieron tres fallas reales:
+
+1. **El bloque "cómo viene el mes que viene" no se veía nunca.** Tenía esta
+   condición: `if (!hayAlgo) return ''` — se escondía si no había sueldo cargado
+   ni nada comprometido. O sea: se ocultaba exactamente en el estado en que
+   estaba su app. Ahora se muestra siempre y, cuando está en cero, explica qué
+   va a aparecer ahí y ofrece cargar el sueldo.
+
+2. **El gráfico de categorías tampoco.** Desaparecía sin gastos. Ahora avisa que
+   ahí se va a ver en qué se fue la plata.
+
+3. **Faltaba lo que Martu más quería:** al cargar un gasto, saber cómo le pega
+   en el mes que viene. No estaba hecho.
+
+Y además Inicio repetía **cuatro veces** el mismo aviso de cierre y vencimiento,
+uno por tarjeta. Ahora es uno solo, agrupado, con un botón que lleva a Tarjetas.
+
+**El impacto del gasto** (`impactoDeGasto` en el motor) corre la misma cuenta del
+balance **dos veces, con y sin el gasto**, y compara. Por eso las cuotas, los
+gastos fijos y la regla del ciclo se respetan solos: no hay una segunda cuenta
+que pueda quedar desincronizada. Muestra cuánto suma, de cuánto a cuánto pasa lo
+comprometido, cuánto quedaría libre, y avisa en rojo si el mes deja de cerrar.
+Si el gasto cae después del cierre y no toca el mes que viene, dice en cuál sí.
+
+**Lección para la próxima:** probar siempre con la app **vacía**, no sólo con
+datos cargados. Las pruebas nuevas incluyen un grupo entero para eso.
+
+**Pruebas:** 157 de la matemática (10 nuevas) y 74 del navegador (12 nuevas).
+
+---
 
 ### 1 de septiembre de 2026 — Tanda grande: 11 pedidos de Martu
 

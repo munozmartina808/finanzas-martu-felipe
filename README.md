@@ -63,10 +63,10 @@ armado, qué no hay que romper y qué falta hacer.
 cd motor && node --test
 ```
 
-Tienen que dar **147 en verde**. Y las que manejan la app de verdad:
+Tienen que dar **157 en verde**. Y las que manejan la app de verdad:
 
 ```bash
 cd pruebas && npm install && npm test
 ```
 
-Tienen que dar **62 en verde**. Si algo está en rojo, no publiques.
+Tienen que dar **74 en verde**. Si algo está en rojo, no publiques.

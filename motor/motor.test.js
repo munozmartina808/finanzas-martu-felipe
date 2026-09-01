@@ -20,7 +20,7 @@ import {
   mesDe, balanceMensual, filtrarGastos, mesesConGastos,
   diasDelCiclo, cicloDeFechaEnTarjeta, cierreDeTarjeta, vencimientoDeTarjeta,
   mesSiguiente, HORIZONTE_FIJOS, gastoPesaEnMes, comoVieneElMes,
-  porCategoria, fijosYVariables, panelMillas, historialMensual,
+  porCategoria, fijosYVariables, panelMillas, historialMensual, impactoDeGasto,
 } from './motor.js';
 
 /* Tarjeta de mentira para las pruebas: cierra el 25, vence el 10. */
@@ -791,6 +791,89 @@ describe('Cómo viene el mes que viene', () => {
     const v = comoVieneElMes({ ...base, gastos: [], mes: '2026-10' });
     assert.equal(v.comprometidoCentavos, 0);
     assert.equal(v.quedaCentavos, 150000000);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   15b. SI HAGO ESTE GASTO HOY, ¿CÓMO ME PEGA EL MES QUE VIENE?
+   ──────────────────────────────────────────────────────────── */
+describe('Cómo me pega un gasto en el mes que viene', () => {
+  const base = {
+    mes: '2026-10', sueldos: { Martu: 50000000, Felipe: 50000000 },
+    tarjetas: [TARJETA], aportes: [], hoy: '2026-09-01', pagados: [],
+  };
+
+  test('un gasto de hoy con tarjeta suma al mes que viene', () => {
+    // cierre 25 → el gasto del 1/9 cae en el resumen de septiembre, que vence el 10/10
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 12000000 });
+    const i = impactoDeGasto({ ...base, gastos: [], gasto: g });
+    assert.equal(i.loToca, true);
+    assert.equal(i.sumaCentavos, 12000000);
+    assert.equal(i.antes.comprometidoCentavos, 0);
+    assert.equal(i.despues.comprometidoCentavos, 12000000);
+  });
+
+  test('dice cuánto quedaría libre después del gasto', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 12000000 });
+    const i = impactoDeGasto({ ...base, gastos: [], gasto: g });
+    assert.equal(i.quedaAntesCentavos, 100000000);
+    assert.equal(i.quedaDespuesCentavos, 88000000);
+  });
+
+  test('en cuotas pega MUCHO menos: sólo entra la primera', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 12000000, tipoPago: 'cuotas', cuotas: 3 });
+    const i = impactoDeGasto({ ...base, gastos: [], gasto: g });
+    assert.equal(i.sumaCentavos, 4000000);
+  });
+
+  test('un gasto DESPUÉS del cierre no toca el mes que viene', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-28', montoCentavos: 12000000 });
+    const i = impactoDeGasto({ ...base, gastos: [], gasto: g });
+    assert.equal(i.loToca, false);
+    assert.equal(i.sumaCentavos, 0);
+  });
+
+  test('...pero sí toca el mes de después', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-28', montoCentavos: 12000000 });
+    const i = impactoDeGasto({ ...base, mes: '2026-11', gastos: [], gasto: g });
+    assert.equal(i.loToca, true);
+    assert.equal(i.sumaCentavos, 12000000);
+  });
+
+  test('avisa cuando el gasto hace que el mes NO cierre', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 200000000 });
+    const i = impactoDeGasto({ ...base, gastos: [], gasto: g });
+    assert.equal(i.dejaDeAlcanzar, true);
+    assert.ok(i.quedaDespuesCentavos < 0);
+  });
+
+  test('cuenta lo que YA había comprometido de antes', () => {
+    const viejo = gasto({ id: 'viejo', fecha: '2026-09-01', montoCentavos: 12000000 });
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-02', montoCentavos: 8000000 });
+    const i = impactoDeGasto({ ...base, gastos: [viejo], gasto: g });
+    assert.equal(i.antes.comprometidoCentavos, 12000000);
+    assert.equal(i.despues.comprometidoCentavos, 20000000);
+    assert.equal(i.sumaCentavos, 8000000);
+  });
+
+  test('al EDITAR uno que ya existe, no lo cuenta dos veces', () => {
+    const viejo = gasto({ id: 'g1', fecha: '2026-09-01', montoCentavos: 12000000 });
+    const corregido = { ...viejo, montoCentavos: 15000000 };
+    const i = impactoDeGasto({ ...base, gastos: [viejo], gasto: corregido });
+    assert.equal(i.despues.comprometidoCentavos, 15000000, 'tiene que reemplazar, no sumar');
+    assert.equal(i.sumaCentavos, 3000000);
+  });
+
+  test('un gasto fijo pega todos los meses', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 3000000, tipoPago: 'fijo', tarjetaId: null });
+    for (const mes of ['2026-10', '2026-11', '2026-12']) {
+      assert.equal(impactoDeGasto({ ...base, mes, gastos: [], gasto: g }).sumaCentavos, 3000000, `falló en ${mes}`);
+    }
+  });
+
+  test('un gasto de $0 no mueve nada', () => {
+    const g = gasto({ id: 'nuevo', fecha: '2026-09-01', montoCentavos: 0 });
+    assert.equal(impactoDeGasto({ ...base, gastos: [], gasto: g }).loToca, false);
   });
 });
 

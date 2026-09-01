@@ -385,7 +385,7 @@ describe('La pantalla de Inicio', () => {
   });
 
   test('con sueldo cargado muestra el porcentaje gastado', async () => {
-    await page.locator('#panel-inicio [data-accion="editar-sueldos"]').click();
+    await page.locator('#btn-editar-sueldo').click();
     await page.waitForSelector('#dlg-sueldos[open]');
     await page.locator('#campos-sueldos input').first().fill('100000');
     await page.locator('#form-sueldos button[type="submit"]').click();
@@ -398,7 +398,7 @@ describe('La pantalla de Inicio', () => {
   });
 
   test('si te pasás del sueldo, lo dice', async () => {
-    await page.locator('#panel-inicio [data-accion="editar-sueldos"]').click();
+    await page.locator('#btn-editar-sueldo').click();
     await page.waitForSelector('#dlg-sueldos[open]');
     await page.locator('#campos-sueldos input').first().fill('10000');
     await page.locator('#form-sueldos button[type="submit"]').click();
@@ -752,5 +752,134 @@ describe('Millas', () => {
     const t = await page.locator('#panel-millas').innerText();
     assert.match(t, /MILLAS JUNTADAS/i);
     assert.match(t, /150/);          // 1,5 millas cada $1.000 sobre $100.000
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   LO QUE MÁS IMPORTA: cómo me pega el gasto en el mes que viene
+   ──────────────────────────────────────────────────────────── */
+describe('Al cargar un gasto, dice cómo pega en el mes que viene', () => {
+  const impacto = () => page.locator('#impacto-mes').innerText();
+
+  const abrirNuevoGasto = async () => {
+    await irA('gastos');
+    await page.locator('#panel-gastos [data-accion="nuevo-gasto"]').click();
+    await page.waitForSelector('#dlg-gasto[open]');
+  };
+
+  test('el cartel está siempre, aunque no hayas puesto el monto', async () => {
+    await abrirNuevoGasto();
+    assert.match(await impacto(), /Cómo te pega en oct 2026/);
+  });
+
+  test('con el monto puesto, dice cuánto suma al mes que viene', async () => {
+    await cargarSueldo(1000000);
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '120000');
+    await page.fill('#g-fecha', '2026-09-01');
+    await page.waitForTimeout(350);
+    const t = await impacto();
+    assert.match(t, /En oct 2026 sumás/);
+    assert.match(t, /120\.000/);
+  });
+
+  test('muestra el antes y el después, no sólo el gasto suelto', async () => {
+    await cargarSueldo(1000000);
+    await irA('gastos');
+    await cargarGasto({ desc: 'Primero', monto: 120000, fecha: '2026-09-01',
+      categoria: 'Supermercado', persona: 'Martu' });
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '80000');
+    await page.fill('#g-fecha', '2026-09-02');
+    await page.waitForTimeout(350);
+    const t = await impacto();
+    assert.match(t, /120\.000/, 'falta lo que ya había comprometido');
+    assert.match(t, /200\.000/, 'falta cómo quedaría');
+  });
+
+  test('dice cuánto quedaría libre', async () => {
+    await cargarSueldo(1000000);
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '120000');
+    await page.fill('#g-fecha', '2026-09-01');
+    await page.waitForTimeout(350);
+    assert.match(await impacto(), /Te quedarían libres \$\s880\.000/);
+  });
+
+  test('en cuotas pega mucho menos, y se ve al instante', async () => {
+    await cargarSueldo(1000000);
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '120000');
+    await page.fill('#g-fecha', '2026-09-01');
+    await page.waitForTimeout(300);
+    assert.match(await impacto(), /120\.000/);
+    await page.locator('input[name="tipoPago"][value="cuotas"]').check();
+    await page.waitForTimeout(150);
+    await page.selectOption('#g-cuotas', '3');
+    await page.waitForTimeout(350);
+    assert.match(await impacto(), /sumás \$\s40\.000/);
+  });
+
+  test('si comprás después del cierre, avisa que no toca ese mes y cuál sí', async () => {
+    await cargarSueldo(1000000);
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '120000');
+    await page.fill('#g-fecha', '2026-09-28');
+    await page.waitForTimeout(400);
+    const t = await impacto();
+    assert.match(t, /No toca oct 2026/);
+    assert.match(t, /nov 2026/);
+  });
+
+  test('avisa fuerte cuando el gasto hace que el mes no cierre', async () => {
+    await cargarSueldo(1000000);
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '2000000');
+    await page.fill('#g-fecha', '2026-09-01');
+    await page.waitForTimeout(350);
+    const t = await impacto();
+    assert.match(t, /no cierra/);
+    assert.match(t, /faltarían/);
+  });
+
+  test('sin sueldo cargado igual dice cuánto suma, e invita a cargarlo', async () => {
+    await abrirNuevoGasto();
+    await page.fill('#g-monto', '120000');
+    await page.fill('#g-fecha', '2026-09-01');
+    await page.waitForTimeout(350);
+    const t = await impacto();
+    assert.match(t, /sumás/);
+    assert.match(t, /Cargá el sueldo/);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   QUE LO PEDIDO SE VEA CON LA APP VACÍA (el error de la vez pasada)
+   ──────────────────────────────────────────────────────────── */
+describe('Con la app recién abierta y sin datos, se ve todo lo pedido', () => {
+  test('Inicio muestra "cómo viene el mes que viene" aunque esté todo en cero', async () => {
+    const t = await page.locator('#panel-inicio').innerText();
+    assert.match(t, /Cómo viene oct 2026/);
+    assert.match(t, /ENTRA/i);
+    assert.match(t, /YA SALE/i);
+  });
+
+  test('...y explica para qué sirve en vez de quedar mudo', async () => {
+    const t = await page.locator('#panel-inicio').innerText();
+    assert.match(t, /Todavía no hay nada comprometido/);
+    assert.match(t, /Cargar el sueldo/);
+  });
+
+  test('Tarjetas muestra el gráfico aunque no haya gastos', async () => {
+    await irA('tarjetas');
+    const t = await page.locator('#panel-tarjetas').innerText();
+    assert.match(t, /se nos fue la plata/);
+  });
+
+  test('el aviso de las fechas aparece UNA vez, no cuatro', async () => {
+    const t = await page.locator('#panel-inicio').innerText();
+    const veces = (t.match(/Falta cargar el cierre/g) || []).length;
+    assert.equal(veces, 1, `apareció ${veces} veces: es ruido`);
+    assert.match(t, /de todas las tarjetas/);
   });
 });

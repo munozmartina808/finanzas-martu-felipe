@@ -272,6 +272,27 @@ dialog h3{font-size:17px;font-weight:800}
 .fechas-clave .destacado .v{color:var(--acento-ink)}
 .cat{display:inline-block;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
 
+/* ---------- cómo pega el gasto en el mes que viene ---------- */
+.impacto{
+  display:flex;flex-direction:column;gap:6px;margin-top:12px;
+  padding:12px 14px;border-radius:var(--r-sm);border:1px solid var(--linea);
+  background:var(--surface-2);font-size:13px;line-height:1.45;
+}
+.impacto-titulo{font-weight:700;font-size:13.5px;letter-spacing:-.01em}
+.impacto-detalle{color:var(--ink-2);font-size:12.5px}
+.impacto-numeros{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0}
+.impacto-numeros > span{display:flex;flex-direction:column;line-height:1.2}
+.impacto-numeros small{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;opacity:.7}
+.impacto-numeros b{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.impacto-flecha{font-size:16px;opacity:.5;align-self:flex-end;padding-bottom:1px}
+.vacio-impacto{color:var(--ink-3)}
+.vacio-impacto .impacto-titulo{color:var(--ink-2)}
+.bueno-impacto{background:var(--acento-suave);border-color:transparent;color:var(--acento-ink)}
+.bueno-impacto .impacto-detalle{color:var(--acento-ink);opacity:.9}
+.malo-impacto{background:var(--critico-suave);border-color:var(--critico-linea);color:var(--critico)}
+.malo-impacto .impacto-detalle{color:var(--critico)}
+.neutro-impacto .impacto-titulo{color:var(--ink-2)}
+
 /* ---------- elegir cómo se paga (un pago / cuotas / fijo) ---------- */
 .opciones-pago{display:flex;flex-direction:column;gap:7px}
 .opcion-pago{
@@ -475,6 +496,7 @@ dialog h3{font-size:17px;font-weight:800}
         </div>
       </div>
       <p class="pista" id="pista-ciclo"></p>
+      <div class="impacto vacio-impacto" id="impacto-mes"></div>
     </div>
     <div class="dlg-pie">
       <button type="button" class="btn" id="borrar-gasto" style="margin-right:auto;color:var(--critico)">Eliminar</button>
@@ -963,6 +985,26 @@ function comoVieneElMes({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados 
   };
 }
 
+/* ── SI HAGO ESTE GASTO HOY, ¿CÓMO ME PEGA EL MES QUE VIENE? ──
+   La idea: antes de guardar el gasto, comparar cómo viene el mes CON y SIN él.
+   No se recalcula nada a mano — se corre la misma cuenta dos veces, así que
+   las cuotas, los fijos y la regla del ciclo se respetan solos. */
+function impactoDeGasto({ gasto, mes, sueldos, gastos, tarjetas, aportes, hoy, pagados = [] }) {
+  const comun = { mes, sueldos, tarjetas, aportes, hoy, pagados };
+  const antes = comoVieneElMes({ ...comun, gastos });
+  /* Si estás editando uno que ya existe, se saca la versión vieja. */
+  const conElGasto = [...gastos.filter((g) => g.id !== gasto.id), gasto];
+  const despues = comoVieneElMes({ ...comun, gastos: conElGasto });
+  return {
+    mes, antes, despues,
+    sumaCentavos: despues.comprometidoCentavos - antes.comprometidoCentavos,
+    quedaAntesCentavos: antes.quedaCentavos,
+    quedaDespuesCentavos: despues.quedaCentavos,
+    loToca: despues.comprometidoCentavos !== antes.comprometidoCentavos,
+    dejaDeAlcanzar: antes.alcanza && !despues.alcanza,
+  };
+}
+
 /* ── EN QUÉ SE NOS FUE LA PLATA ──
    Agrupa los gastos por categoría, de mayor a menor, con su porcentaje.
    `tipos` dice cuáles categorías son fijas: { Alquiler: 'fijo', Comida: 'variable' } */
@@ -1252,8 +1294,21 @@ function pintarInicio(panel, ahorros, bal, proximo, hoy) {
   const pctQueda = sueldo > 0 ? Math.max(0, 100 - pctGasto) : 0;
   const excedido = gastado > sueldo && sueldo > 0;
 
-  const alertasHtml = panel.alertas.length
-    ? `<div class="pila" style="gap:9px">${panel.alertas.map((a) =>
+  /* Las de "faltan las fechas" son iguales para las 4 tarjetas: se juntan en
+     una sola, para no llenar Inicio con el mismo texto repetido. */
+  const fechas = panel.alertas.filter((a) => a.tipo === 'fechas-sin-confirmar');
+  const otras = panel.alertas.filter((a) => a.tipo !== 'fechas-sin-confirmar');
+  const alertaFechas = fechas.length ? `
+    <div class="alerta aviso"><span class="raya"></span><span>
+      Falta cargar el cierre y el vencimiento de <b>${cicloBonito(mesDe(hoy))}</b>
+      ${fechas.length === panel.resumenes.length
+        ? 'de todas las tarjetas'
+        : `de ${fechas.length === 1 ? '1 tarjeta' : fechas.length + ' tarjetas'}`}.
+      Mientras tanto se usan los de siempre.
+      <button class="btn chico" data-accion="ir-tarjetas" style="margin-top:7px">Cargarlos ahora</button>
+    </span></div>` : '';
+  const alertasHtml = (otras.length || fechas.length)
+    ? `<div class="pila" style="gap:9px">${alertaFechas}${otras.map((a) =>
         `<div class="alerta ${a.nivel}"><span class="raya"></span><span>${a.mensaje}</span></div>`).join('')}</div>` : '';
 
   const vencHtml = panel.proximosVencimientos.length ? `
@@ -1277,7 +1332,7 @@ function pintarInicio(panel, ahorros, bal, proximo, hoy) {
     <div class="caja">
       <div class="caja-cabecera">
         <h2>${cicloBonito(mesDe(hoy))}</h2>
-        <button class="btn chico" data-accion="editar-sueldos">Editar sueldo</button>
+        <button class="btn chico" id="btn-editar-sueldo" data-accion="editar-sueldos">Editar sueldo</button>
       </div>
       <div class="caja-cuerpo">
         <div class="titular">
@@ -1314,8 +1369,9 @@ function pintarInicio(panel, ahorros, bal, proximo, hoy) {
    Los resúmenes de tarjeta que vencen el mes que viene, las cuotas que caen
    y los gastos fijos que se repiten. */
 function bloqueMesQueViene(p, hoy) {
-  const hayAlgo = p.comprometidoCentavos > 0 || p.ingresoCentavos > 0;
-  if (!hayAlgo) return '';
+  /* Se muestra SIEMPRE, aunque esté todo en cero: es lo primero que Martu
+     quiere ver, y esconderlo cuando no hay datos es esconderlo justo cuando
+     hace falta explicar para qué sirve. */
   const pct = Math.min(100, p.porcentajeComprometido);
 
   const detalle = [
@@ -1354,8 +1410,13 @@ function bloqueMesQueViene(p, hoy) {
             <li><span class="crece"><span class="titulo">${d.que}</span></span>
               <span class="monto">${formatear(d.cuanto)}</span></li>`).join('')}
           </ul>` : ''}
-        ${p.comprometidoCentavos === 0
-          ? '<p class="pista" style="margin-top:12px">Todavía no hay nada comprometido para el mes que viene.</p>' : ''}
+        ${p.comprometidoCentavos === 0 ? `<p class="pista" style="margin-top:12px">
+          Todavía no hay nada comprometido para ${cicloBonito(mesSiguiente(mesDe(hoy)))}.
+          Cuando cargues un gasto con tarjeta o uno fijo, va a aparecer acá — y al
+          cargarlo te voy a decir cuánto te mueve este número.</p>` : ''}
+        ${p.ingresoCentavos === 0 ? `<p class="pista" style="margin-top:8px">
+          <button class="btn chico" data-accion="editar-sueldos">Cargar el sueldo</button>
+          para ver cuánto te quedaría libre.</p>` : ''}
       </div>
     </div>`;
 }
@@ -1485,8 +1546,14 @@ function avisoFechasDelMes(panel, hoy) {
 /* ══════ el gráfico de en qué se fue la plata ══════
    Una barra por categoría, de mayor a menor. Se lee de un vistazo y no
    necesita ninguna librería. */
-function graficoCategorias(reparto, titulo, bajada) {
-  if (!reparto.categorias.length) return '';
+function graficoCategorias(reparto, titulo, bajada, vacio) {
+  if (!reparto.categorias.length) {
+    return vacio === false ? '' : `
+      <div class="caja">
+        <div class="caja-cabecera"><h2>${titulo}</h2></div>
+        <div class="vacio">${vacio || 'Cuando cargues gastos, acá vas a ver en qué se fue la plata.'}</div>
+      </div>`;
+  }
   const top = reparto.categorias.slice(0, 8);
   const resto = reparto.categorias.slice(8);
   const restoTotal = sumar(resto.map((c) => c.montoCentavos));
@@ -2097,6 +2164,79 @@ const tipoPagoElegido = () => {
   return r ? r.value : 'unico';
 };
 
+/* El gasto tal como quedaría si lo guardaras ahora mismo. */
+function gastoDelFormulario() {
+  const f = $('#form-gasto');
+  const tipo = tipoPagoElegido();
+  return {
+    id: editando.gasto || '__todavia-no-guardado__',
+    descripcion: f.descripcion.value.trim(),
+    montoCentavos: aCentavos(f.monto.value || 0),
+    fecha: f.fecha.value,
+    tarjetaId: f.tarjetaId.value || null,
+    tipoPago: tipo,
+    cuotas: tipo === 'cuotas' ? Math.max(1, +f.cuotas.value || 1) : 1,
+    persona: f.persona.value,
+    categoria: f.categoria.value,
+  };
+}
+
+/* ══ LO QUE MÁS IMPORTA: cómo pega este gasto en el mes que viene ══
+   Se muestra mientras lo cargás, antes de guardar nada. */
+function impactoMesQueViene() {
+  const el = $('#impacto-mes');
+  const g = gastoDelFormulario();
+  const hoy = hoyISO();
+  const mes = mesSiguiente(mesDe(hoy));
+
+  if (!g.montoCentavos || !g.fecha) {
+    el.className = 'impacto vacio-impacto';
+    el.innerHTML = `<span class="impacto-titulo">Cómo te pega en ${cicloBonito(mes)}</span>`
+      + `<span class="impacto-detalle">Poné el monto y la fecha y te lo calculo acá.</span>`;
+    return;
+  }
+
+  const i = impactoDeGasto({
+    gasto: g, mes, sueldos: DATOS.config.sueldos, gastos: DATOS.gastos,
+    tarjetas: tarjetasOrdenadas(), aportes: DATOS.aportes, hoy, pagados: DATOS.pagos,
+  });
+
+  if (!i.loToca) {
+    /* Si no pega en el mes que viene, buscamos en cuál sí, para no dejarla
+       con la duda. Miramos los 4 meses siguientes. */
+    let cuando = null;
+    for (let n = 2; n <= 5 && !cuando; n++) {
+      const otro = mesSiguiente(mesDe(hoy), n);
+      const j = impactoDeGasto({
+        gasto: g, mes: otro, sueldos: DATOS.config.sueldos, gastos: DATOS.gastos,
+        tarjetas: tarjetasOrdenadas(), aportes: DATOS.aportes, hoy, pagados: DATOS.pagos,
+      });
+      if (j.loToca) cuando = { mes: otro, suma: j.sumaCentavos };
+    }
+    el.className = 'impacto neutro-impacto';
+    el.innerHTML = `<span class="impacto-titulo">No toca ${cicloBonito(mes)}</span>`
+      + (cuando
+        ? `<span class="impacto-detalle">Recién pega en <b>${cicloBonito(cuando.mes)}</b>, con ${formatear(cuando.suma)}.</span>`
+        : '<span class="impacto-detalle">Fijate arriba en qué resumen entra.</span>');
+    return;
+  }
+
+  const sinSueldo = i.despues.ingresoCentavos === 0;
+  el.className = 'impacto ' + (i.dejaDeAlcanzar || !i.despues.alcanza ? 'malo-impacto' : 'bueno-impacto');
+  el.innerHTML = `
+    <span class="impacto-titulo">En ${cicloBonito(mes)} sumás ${formatear(i.sumaCentavos)}</span>
+    <span class="impacto-numeros">
+      <span><small>ya comprometido</small><b>${formatear(i.antes.comprometidoCentavos)}</b></span>
+      <span class="impacto-flecha">→</span>
+      <span><small>quedaría</small><b>${formatear(i.despues.comprometidoCentavos)}</b></span>
+    </span>
+    ${sinSueldo
+      ? '<span class="impacto-detalle">Cargá el sueldo y te digo también cuánto te quedaría libre.</span>'
+      : i.despues.alcanza
+        ? `<span class="impacto-detalle">Te quedarían libres <b>${formatear(i.quedaDespuesCentavos)}</b> de ${formatear(i.despues.ingresoCentavos)}.</span>`
+        : `<span class="impacto-detalle">⚠️ Con esto ${cicloBonito(mes)} <b>no cierra</b>: te faltarían ${formatear(-i.quedaDespuesCentavos)}.</span>`}`;
+}
+
 function pistaCiclo() {
   const f = $('#form-gasto');
   const t = DATOS.tarjetas.find((x) => x.id === f.tarjetaId.value);
@@ -2110,15 +2250,17 @@ function pistaCiclo() {
     el.innerHTML = t
       ? `Se va a cobrar <b>todos los meses</b> en el resumen de <b>${escapar(t.nombre)}</b>, desde ${f.fecha.value ? fechaLarga(f.fecha.value) : 'la fecha que pongas'}.`
       : 'Va a pesar <b>todos los meses</b> desde la fecha que pongas. Ideal para el alquiler, la psicóloga o una suscripción.';
-    return;
+  } else if (!t || !f.fecha.value) {
+    el.textContent = 'Sin tarjeta, el gasto pesa en el mes en que lo hacés.';
+  } else {
+    const c = cicloDeFechaEnTarjeta(f.fecha.value, t);
+    const venc = vencimientoDeTarjeta(t, c);
+    const n = tipo === 'cuotas' ? Math.max(1, +f.cuotas.value || 1) : 1;
+    el.innerHTML = n > 1
+      ? `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b> — primera cuota el <b>${fechaLarga(venc)}</b>, y las otras ${n - 1} en los resúmenes siguientes.`
+      : `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b>, que se paga el <b>${fechaLarga(venc)}</b>.`;
   }
-  if (!t || !f.fecha.value) { el.textContent = 'Sin tarjeta, el gasto pesa en el mes en que lo hacés.'; return; }
-  const c = cicloDeFechaEnTarjeta(f.fecha.value, t);
-  const venc = vencimientoDeTarjeta(t, c);
-  const n = tipo === 'cuotas' ? Math.max(1, +f.cuotas.value || 1) : 1;
-  el.innerHTML = n > 1
-    ? `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b> — primera cuota el <b>${fechaLarga(venc)}</b>, y las otras ${n - 1} en los resúmenes siguientes.`
-    : `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b>, que se paga el <b>${fechaLarga(venc)}</b>.`;
+  impactoMesQueViene();
 }
 
 function abrirGasto(id, tarjetaPreferida) {
@@ -2156,7 +2298,7 @@ function abrirGasto(id, tarjetaPreferida) {
     const r = $('#form-gasto').querySelector('input[name="tipoPago"][value="fijo"]');
     if (r) r.checked = true;
   }
-  if (['tarjetaId', 'fecha', 'cuotas', 'tipoPago', 'categoria'].includes(e.target.name)) pistaCiclo();
+  if (['tarjetaId', 'fecha', 'cuotas', 'tipoPago', 'categoria', 'monto'].includes(e.target.name)) pistaCiclo();
 }));
 $('#form-gasto').addEventListener('submit', (e) => {
   const f = e.target;
@@ -2360,6 +2502,7 @@ document.addEventListener('click', (e) => {
   else if (accion === 'pagar') alternarPago(clave);
   else if (accion === 'fechas-mes') abrirFechas(id, b.dataset.ciclo);
   else if (accion === 'nueva-categoria') abrirCategoria();
+  else if (accion === 'ir-tarjetas') irA('tarjetas');
 });
 
 /* Los filtros: al cambiar uno, se vuelve a dibujar la lista. Como al dibujar
