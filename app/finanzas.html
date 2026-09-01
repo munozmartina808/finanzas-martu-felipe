@@ -488,9 +488,37 @@ dialog h3{font-size:17px;font-weight:800}
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   MOTOR — lógica pura, sin DOM. Portado del módulo con 39 pruebas.
-   Plata en centavos enteros; fechas 'YYYY-MM-DD' sin objetos Date.
+   MOTOR — la matemática de la app. Sin pantalla y sin datos
+   guardados: solamente cuentas.
+
+   ⚠️  ÉSTA ES LA ÚNICA COPIA DEL MOTOR.
+
+   Antes había dos (una acá y otra en motor/motor.js) y había que
+   acordarse de cambiar las dos. Ya no: motor/motor.js LEE este
+   bloque para probarlo. Así las pruebas prueban exactamente el
+   mismo código que corre la app, no una copia parecida.
+
+   👉 Si cambiás la matemática, se cambia acá y en ningún otro lado.
+
+   Los dos marcadores de abajo son los que usa motor/motor.js para
+   saber dónde empieza y dónde termina el motor. NO LOS BORRES.
+
+   Dos reglas que no se negocian:
+   - La plata va en centavos enteros. Nunca decimales, o las cuotas
+     no cierran.
+   - Las fechas son texto 'AAAA-MM-DD'. Nunca objetos Date, que se
+     corren un día según la zona horaria.
    ══════════════════════════════════════════════════════════════ */
+
+/* ▼▼▼ EMPIEZA EL MOTOR ▼▼▼ */
+
+/* Estos tres los usa el motor para escribir las alertas.
+   Viven acá y no en el bloque de DATOS por eso mismo. */
+function escapar(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+function fechaCorta(iso) { const f = parseFecha(iso); return `${f.d} ${MESES[f.m - 1]}`; }
 
 const aCentavos = (p) => Math.round(Number(p) * 100);
 const sumar = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -738,6 +766,8 @@ function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados 
     consumoCentavos: sumar(gastos.filter((g) => mesDe(g.fecha) === mes).map((g) => g.montoCentavos)),
   };
 }
+
+/* ▲▲▲ TERMINA EL MOTOR ▲▲▲ */
 </script>
 
 <script>
@@ -755,11 +785,8 @@ const CLAVE_LOCAL = 'cierres-y-metas-v1';
 let db = null, modo = 'esperando';
 
 const nuevoId = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-function escapar(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-function fechaCorta(iso) { const f = parseFecha(iso); return `${f.d} ${MESES[f.m - 1]}`; }
+/* escapar, MESES y fechaCorta se mudaron arriba, al bloque del MOTOR, porque
+   el motor los necesita para escribir las alertas. Siguen disponibles acá. */
 function fechaLarga(iso) { const f = parseFecha(iso); return `${f.d} ${MESES[f.m - 1]} ${f.y}`; }
 function cicloBonito(id) { const [y, m] = id.split('-'); return `${MESES[+m - 1]} ${y}`; }
 function enDias(d) { return d === 0 ? 'hoy' : d === 1 ? 'mañana' : `en ${d} días`; }

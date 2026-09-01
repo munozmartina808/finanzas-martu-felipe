@@ -35,10 +35,10 @@ finanzas-martu-felipe/
 ├── README.md           ← cómo se usa la app
 ├── app/
 │   └── finanzas.html   ← LA APP ENTERA. Un solo archivo, se abre con doble clic.
-├── motor/              ← la matemática sola, con sus pruebas
-│   ├── motor.js        ← las cuentas (copia gemela de la que está en el HTML)
-│   ├── motor.test.js   ← 98 pruebas de la matemática
-│   ├── copia-fiel.test.js ← 37 pruebas que vigilan que las dos copias no se separen
+├── motor/              ← las pruebas de la matemática
+│   ├── motor.js        ← NO tiene el motor: lo LEE de app/finanzas.html
+│   ├── motor.test.js   ← 96 pruebas de la matemática
+│   ├── reglas.test.js  ← 9 pruebas de que el motor siga siendo matemática pura
 │   └── package.json
 └── pruebas/            ← 33 pruebas que manejan la app en un navegador de verdad
     ├── app.test.js
@@ -49,11 +49,11 @@ finanzas-martu-felipe/
 **Para correr las pruebas — las dos tandas, siempre antes de publicar:**
 
 ```bash
-cd motor && node --test        # 135 pruebas · las CUENTAS · tarda 1 segundo
+cd motor && node --test        # 105 pruebas · las CUENTAS · tarda 1 segundo
 cd pruebas && npm test         # 33 pruebas · los BOTONES · tarda unos minutos
 ```
 
-Total: **168 en verde**. Si alguna se pone en rojo, algo se rompió: no publicar.
+Total: **138 en verde**. Si alguna se pone en rojo, algo se rompió: no publicar.
 
 (Las de `pruebas/` necesitan `npm install` la primera vez. Las de `motor/` no
 necesitan instalar nada.)
@@ -100,13 +100,17 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
    para que Felipe y Martu vean lo mismo. Si eso no está disponible, la app
    sigue andando y guarda en el navegador. Nunca se queda en blanco.
 
-5. **El motor está escrito dos veces**, a propósito:
-   - en `motor/motor.js`, donde viven las pruebas;
-   - pegado adentro de `app/finanzas.html`, para que la app sea un solo archivo.
+5. **El motor está escrito UNA sola vez**, adentro de `app/finanzas.html`,
+   entre los marcadores `▼▼▼ EMPIEZA EL MOTOR ▼▼▼` y `▲▲▲ TERMINA EL MOTOR ▲▲▲`.
 
-   👉 **Si cambiás la matemática, cambiala en LOS DOS lados.**
-   `motor/copia-fiel.test.js` compara las dos copias función por función y te
-   dice exactamente cuál quedó distinta. Está probado que salta de verdad.
+   👉 **Si cambiás la matemática, se cambia ahí y en ningún otro lado.**
+
+   `motor/motor.js` no tiene una copia: lee ese bloque del HTML y lo deja listo
+   para las pruebas. Por eso las pruebas prueban, letra por letra, el mismo
+   código que corre la app.
+
+   ⚠️ **No borres los dos marcadores.** Si desaparecen, las pruebas no
+   encuentran el motor (y te lo dicen con todas las letras).
 
 ---
 
@@ -161,8 +165,7 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
    banco y mandó una foto de referencia que nunca llegó. Lo que hay ahora es una
    interpretación. *Falta que llegue la foto para ajustarla.*
 
-3. **Unificar el motor duplicado.** Hoy está mitigado (el guardián avisa si las
-   dos copias se separan), pero sigue habiendo dos copias.
+*(Nada pendiente del lado técnico. Los dos puntos de arriba dependen de vos.)*
 
 ### Ya hecho
 
@@ -170,10 +173,51 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
 - ~~Filtrar los gastos por mes, por categoría o por persona.~~ ✅ 1/9/2026
 - ~~Rehacer las pruebas de `pruebas/`.~~ ✅ 1/9/2026 — no son las 12 originales
   (se perdieron), son 33 nuevas escritas de cero.
+- ~~Unificar el motor duplicado.~~ ✅ 1/9/2026
 
 ---
 
 ## Historial
+
+### 1 de septiembre de 2026 — El motor unificado
+
+**El problema:** el motor estaba escrito dos veces, una en `motor/motor.js` y
+otra pegada adentro de `app/finanzas.html`. Si alguien cambiaba una y se
+olvidaba de la otra, las pruebas probaban una cuenta y la app hacía otra.
+
+**Por qué existía esa duplicación:** la app tiene que ser un solo archivo que se
+abre con doble clic, sin instalar nada. Eso obliga a que el motor viva adentro
+del HTML — un navegador no puede cargar un archivo `.js` de al lado cuando abrís
+un HTML suelto (lo bloquea por seguridad). Así que la copia dentro del HTML no
+se puede eliminar.
+
+**La solución fue al revés de lo que parece:** en vez de sacar el motor del HTML,
+se eliminó la copia de `motor/motor.js`. Ahora ese archivo **lee** el motor de
+`app/finanzas.html`, entre dos marcadores, y lo deja listo para las pruebas.
+
+Resultado: la matemática está escrita **en un solo lugar**, y las pruebas prueban
+letra por letra el mismo código que corre la app. Antes probaban una copia que
+podía haberse separado.
+
+**Qué se tocó:**
+
+- `app/finanzas.html` — se agregaron los marcadores `▼▼▼ EMPIEZA EL MOTOR ▼▼▼` y
+  `▲▲▲ TERMINA EL MOTOR ▲▲▲`. Se mudaron `escapar`, `MESES` y `fechaCorta` del
+  bloque de DATOS al del motor, que era lo único que el motor usaba de afuera.
+  La matemática no se cambió.
+- `motor/motor.js` — dejó de tener la copia; ahora extrae el motor del HTML.
+- `motor/copia-fiel.test.js` — **eliminado**: comparaba las dos copias, y ya no
+  hay dos.
+- `motor/reglas.test.js` — nuevo, 9 pruebas. Se quedó con lo que seguía sirviendo
+  del archivo anterior (que el motor no toque la pantalla, que no arme fechas con
+  `Date`, que la plata sea entera) y suma que los marcadores estén y que no haya
+  quedado otra copia suelta del motor.
+
+**Verificado:** cambiando la matemática en el HTML a propósito, 5 pruebas del
+motor se ponen en rojo al instante — o sea que de verdad leen la app. Y borrando
+un marcador, el error explica qué pasó y cómo arreglarlo.
+
+---
 
 ### 1 de septiembre de 2026 — Buscador de gastos y arreglar aportes
 

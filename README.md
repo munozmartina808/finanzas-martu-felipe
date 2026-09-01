@@ -48,8 +48,11 @@ armado, qué no hay que romper y qué falta hacer.
   crear una nueva. Ahí están los datos.
 - La plata va en **centavos enteros**. Las fechas son **texto `'AAAA-MM-DD'`**.
   Las dos cosas tienen razones concretas explicadas en MEMORIA.md.
-- El motor está escrito dos veces (en `motor/motor.js` y adentro del HTML).
-  **Si cambiás la matemática, cambiala en los dos lados.**
+- El motor (la matemática) está escrito **una sola vez**, adentro de
+  `app/finanzas.html`, entre los marcadores `▼▼▼ EMPIEZA EL MOTOR ▼▼▼` y
+  `▲▲▲ TERMINA EL MOTOR ▲▲▲`. Ahí se cambia, y en ningún otro lado.
+  `motor/motor.js` no tiene una copia: lee ese bloque para probarlo.
+  **No borres los marcadores.**
 
 **Antes de publicar cualquier cambio, correr las pruebas:**
 
@@ -57,7 +60,7 @@ armado, qué no hay que romper y qué falta hacer.
 cd motor && node --test
 ```
 
-Tienen que dar **135 en verde**. Y las que manejan la app de verdad:
+Tienen que dar **105 en verde**. Y las que manejan la app de verdad:
 
 ```bash
 cd pruebas && npm install && npm test
