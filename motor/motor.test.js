@@ -17,7 +17,7 @@ import {
   cuotasDeGasto, millasDe, financiacion,
   resumenDeTarjeta, panelTarjetas,
   mesesHasta, progresoDeMeta, panelAhorros,
-  mesDe, balanceMensual,
+  mesDe, balanceMensual, filtrarGastos, mesesConGastos,
 } from './motor.js';
 
 /* Tarjeta de mentira para las pruebas: cierra el 25, vence el 10. */
@@ -567,7 +567,68 @@ describe('El balance del mes: cuánto tengo y cuánto gasto', () => {
 });
 
 /* ────────────────────────────────────────────────────────────
-   12. CÓMO SE MUESTRA LA PLATA
+   12. FILTRAR LOS GASTOS
+   ──────────────────────────────────────────────────────────── */
+describe('Filtrar la lista de gastos', () => {
+  const gastos = [
+    gasto({ id: 'a', fecha: '2026-03-05', categoria: 'Comida', persona: 'Martu', montoCentavos: 10000 }),
+    gasto({ id: 'b', fecha: '2026-03-20', categoria: 'Ropa', persona: 'Felipe', montoCentavos: 20000 }),
+    gasto({ id: 'c', fecha: '2026-04-02', categoria: 'Comida', persona: 'Martu', montoCentavos: 30000 }),
+    gasto({ id: 'd', fecha: '2026-04-11', categoria: 'Comida', persona: 'Felipe', montoCentavos: 40000 }),
+  ];
+
+  test('sin ningún filtro puesto, están todos', () => {
+    assert.equal(filtrarGastos(gastos, {}).length, 4);
+    assert.equal(filtrarGastos(gastos).length, 4);
+  });
+
+  test('filtra por mes', () => {
+    assert.deepEqual(filtrarGastos(gastos, { mes: '2026-03' }).map((g) => g.id), ['a', 'b']);
+  });
+
+  test('filtra por categoría', () => {
+    assert.deepEqual(filtrarGastos(gastos, { categoria: 'Comida' }).map((g) => g.id), ['a', 'c', 'd']);
+  });
+
+  test('filtra por persona', () => {
+    assert.deepEqual(filtrarGastos(gastos, { persona: 'Martu' }).map((g) => g.id), ['a', 'c']);
+  });
+
+  test('los filtros se combinan: comida de Felipe en abril', () => {
+    const r = filtrarGastos(gastos, { mes: '2026-04', categoria: 'Comida', persona: 'Felipe' });
+    assert.deepEqual(r.map((g) => g.id), ['d']);
+  });
+
+  test('si no hay nada que coincida, devuelve la lista vacía (no explota)', () => {
+    assert.deepEqual(filtrarGastos(gastos, { mes: '2020-01' }), []);
+  });
+
+  test('sirve para saber cuánto se gastó en algo: comida de marzo y abril', () => {
+    const comida = filtrarGastos(gastos, { categoria: 'Comida' });
+    assert.equal(sumar(comida.map((g) => g.montoCentavos)), 80000);
+  });
+
+  test('no toca la lista original', () => {
+    filtrarGastos(gastos, { mes: '2026-03' });
+    assert.equal(gastos.length, 4);
+  });
+
+  test('lista los meses que tienen gastos, del más nuevo al más viejo', () => {
+    assert.deepEqual(mesesConGastos(gastos), ['2026-04', '2026-03']);
+  });
+
+  test('cada mes aparece una sola vez', () => {
+    const repetidos = [gasto({ id: 'x', fecha: '2026-03-01' }), gasto({ id: 'y', fecha: '2026-03-02' })];
+    assert.deepEqual(mesesConGastos(repetidos), ['2026-03']);
+  });
+
+  test('sin gastos, no hay meses', () => {
+    assert.deepEqual(mesesConGastos([]), []);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   13. CÓMO SE MUESTRA LA PLATA
    ──────────────────────────────────────────────────────────── */
 describe('Cómo se muestra la plata en pantalla', () => {
   test('muestra pesos sin centavos y con separador de miles', () => {

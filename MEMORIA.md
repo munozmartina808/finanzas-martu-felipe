@@ -3,7 +3,7 @@
 Este archivo es el estado del proyecto. Si alguien (o alguna IA) empieza a
 trabajar acá de cero, esto es lo primero que tiene que leer.
 
-Última actualización: **1 de septiembre de 2026**
+Última actualización: **1 de septiembre de 2026** (segunda tanda del día)
 
 ---
 
@@ -37,20 +37,26 @@ finanzas-martu-felipe/
 │   └── finanzas.html   ← LA APP ENTERA. Un solo archivo, se abre con doble clic.
 ├── motor/              ← la matemática sola, con sus pruebas
 │   ├── motor.js        ← las cuentas (copia gemela de la que está en el HTML)
-│   ├── motor.test.js   ← 85 pruebas de la matemática
+│   ├── motor.test.js   ← 98 pruebas de la matemática
 │   ├── copia-fiel.test.js ← 37 pruebas que vigilan que las dos copias no se separen
 │   └── package.json
-└── pruebas/            ← (VACÍA, ver "Lo que falta")
+└── pruebas/            ← 33 pruebas que manejan la app en un navegador de verdad
+    ├── app.test.js
+    ├── package.json
+    └── LEEME.md
 ```
 
-**Para correr las pruebas:**
+**Para correr las pruebas — las dos tandas, siempre antes de publicar:**
 
 ```bash
-cd motor && node --test
+cd motor && node --test        # 135 pruebas · las CUENTAS · tarda 1 segundo
+cd pruebas && npm test         # 33 pruebas · los BOTONES · tarda unos minutos
 ```
 
-Tienen que dar **122 en verde**. Si alguna se pone en rojo, la matemática se
-rompió: no publicar.
+Total: **168 en verde**. Si alguna se pone en rojo, algo se rompió: no publicar.
+
+(Las de `pruebas/` necesitan `npm install` la primera vez. Las de `motor/` no
+necesitan instalar nada.)
 
 ---
 
@@ -130,9 +136,18 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
   cuotas y quién lo hizo. Mientras se carga, avisa en qué resumen va a caer y
   cuándo se paga.
 
+  Arriba de la lista hay **tres filtros**: por mes, por categoría y por quién.
+  Se combinan entre sí, y el encabezado muestra cuántos gastos estás viendo y
+  cuánto suman ("3 gastos de 12 · $45.000"). Los desplegables sólo ofrecen los
+  meses, categorías y personas que existen de verdad en lo cargado.
+
 - **Ahorros** — metas con nombre, objetivo, fecha límite opcional y aportes de
   cada uno. Muestra barra de progreso, porcentaje, cuánto falta y cuánto hay
   que poner por mes para llegar a la fecha.
+
+  Cada aporte se puede **arreglar** con el lapicito: se abre el formulario
+  completado con lo que tenía y se corrige en el lugar, sin duplicarlo. Cuando
+  una meta tiene más de 6 aportes, un botón despliega todos.
 
 ---
 
@@ -146,20 +161,49 @@ aviso sólo aparece cuando el cierre está cerca — esperar recién conviene ah
    banco y mandó una foto de referencia que nunca llegó. Lo que hay ahora es una
    interpretación. *Falta que llegue la foto para ajustarla.*
 
-3. **Poder editar un aporte de ahorro ya cargado.** Hoy hay que borrarlo y
-   cargarlo de nuevo.
-
-4. **Filtrar los gastos** por mes, por categoría o por persona.
-
-5. **Unificar el motor duplicado.** Hoy está mitigado (el guardián avisa si las
+3. **Unificar el motor duplicado.** Hoy está mitigado (el guardián avisa si las
    dos copias se separan), pero sigue habiendo dos copias.
 
-6. **Rehacer las 12 pruebas de `pruebas/`** que manejaban la app de verdad en un
-   navegador. Se perdieron (ver más abajo). Ver `pruebas/LEEME.md`.
+### Ya hecho
+
+- ~~Poder editar un aporte de ahorro ya cargado.~~ ✅ 1/9/2026
+- ~~Filtrar los gastos por mes, por categoría o por persona.~~ ✅ 1/9/2026
+- ~~Rehacer las pruebas de `pruebas/`.~~ ✅ 1/9/2026 — no son las 12 originales
+  (se perdieron), son 33 nuevas escritas de cero.
 
 ---
 
 ## Historial
+
+### 1 de septiembre de 2026 — Buscador de gastos y arreglar aportes
+
+**Qué se agregó a la app:**
+
+- **Filtros en la lista de gastos** (por mes, categoría y persona). Se combinan
+  entre sí y el encabezado muestra el total de lo que se está viendo. Los
+  desplegables se arman solos con lo que hay cargado: no ofrecen un mes o una
+  categoría que no tenga ningún gasto.
+
+- **Editar un aporte de ahorro ya cargado.** Antes había que borrarlo y cargarlo
+  de nuevo. El lapicito abre el formulario completado y se corrige en el lugar.
+  El botón Eliminar pasó a estar adentro del formulario, como en gastos y metas.
+  Y como sólo se veían los últimos 6 aportes (y no se puede arreglar lo que no
+  se ve), se agregó un botón para desplegarlos todos.
+
+**Dónde se tocó:**
+
+- `app/finanzas.html` — los filtros, el formulario de aporte y el motor.
+- `motor/motor.js` — dos funciones nuevas: `filtrarGastos` y `mesesConGastos`.
+  Se agregaron **en los dos lados** (módulo y HTML), como manda la regla.
+- `motor/motor.test.js` — 13 pruebas nuevas del filtrado.
+- `pruebas/app.test.js` — **carpeta estrenada**: 33 pruebas que abren la app en
+  un navegador de verdad y tocan los botones.
+
+**No se tocó** la regla del ciclo ni la matemática de las cuotas.
+
+**Publicado** sobre la dirección de siempre, con los datos compartidos intactos.
+
+---
 
 ### 1 de septiembre de 2026 — Rescate del proyecto
 

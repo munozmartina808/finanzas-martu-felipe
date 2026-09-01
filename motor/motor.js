@@ -232,6 +232,20 @@ function panelAhorros(metas, aportes, hoy) {
 
 const mesDe = (iso) => iso.slice(0, 7);
 
+/* — FILTROS de la lista de gastos. Un filtro vacío quiere decir "todos". */
+function filtrarGastos(gastos, filtros = {}) {
+  const { mes, categoria, persona } = filtros;
+  return gastos.filter((g) =>
+    (!mes || mesDe(g.fecha) === mes)
+    && (!categoria || g.categoria === categoria)
+    && (!persona || g.persona === persona));
+}
+
+/* Los meses que tienen algún gasto, del más nuevo al más viejo. */
+function mesesConGastos(gastos) {
+  return [...new Set(gastos.map((g) => mesDe(g.fecha)))].sort().reverse();
+}
+
 function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados }) {
   const ingresoCentavos = sumar(Object.values(sueldos || {}));
   const gastoDirectoCentavos = sumar(gastos.filter((g) => !g.tarjetaId && mesDe(g.fecha) === mes).map((g) => g.montoCentavos));
@@ -262,6 +276,6 @@ export {
   cuotasDeGasto, millasDe, financiacion,
   resumenDeTarjeta, panelTarjetas,
   mesesHasta, progresoDeMeta, panelAhorros,
-  mesDe, balanceMensual,
+  mesDe, balanceMensual, filtrarGastos, mesesConGastos,
   escapar, fechaCorta, MESES,
 };

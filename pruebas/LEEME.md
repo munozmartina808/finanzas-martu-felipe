@@ -1,37 +1,57 @@
 # Pruebas de la app en un navegador
 
-**Esta carpeta está vacía a propósito, y es una deuda pendiente.**
+Estas pruebas **abren la app de verdad** en un navegador, tocan los botones como
+los tocarías vos, y revisan que la pantalla muestre lo correcto.
 
-Acá vivían 12 pruebas que manejaban la app de verdad: abrían el archivo en un
-navegador, tocaban los botones y revisaban que la pantalla mostrara lo correcto.
+La diferencia con las de `motor/`:
 
-Se perdieron cuando el repositorio quedó vacío (ver el historial en
-[../MEMORIA.md](../MEMORIA.md)) y no hay de dónde recuperarlas: a diferencia de
-la app, nunca estuvieron publicadas en ningún lado.
+- `motor/` prueba **las cuentas** (que las cuotas sumen, que las fechas no se
+  corran). Son rápidas: tardan menos de un segundo.
+- `pruebas/` prueba **los botones** (que al tocar algo pase lo que tiene que
+  pasar). Son más lentas: abren un navegador de verdad, tardan unos minutos.
 
-## Qué queda cubierto igual
-
-La **matemática** — que es donde de verdad se pueden colar los errores de plata —
-está cubierta por las 122 pruebas de `motor/`:
+## Cómo correrlas
 
 ```bash
-cd motor && node --test
+cd pruebas
+npm install     # una sola vez, baja el navegador de prueba
+npm test
 ```
 
-## Qué queda sin cubrir
+Tienen que dar **33 en verde**.
 
-Lo que las pruebas de esta carpeta miraban y hoy nadie mira automáticamente:
+Si te dice que no encuentra el navegador, hay que indicarle dónde está:
 
-- Que los botones abran los diálogos que corresponden.
-- Que cargar un gasto lo haga aparecer en la lista y en la tarjeta correcta.
-- Que "Ya pagué" pase el saldo al mes siguiente.
-- Que las 4 tarjetas se muestren en el orden correcto.
-- Que la app arranque bien cuando no hay datos guardados.
+```bash
+CHROMIUM_PATH=/ruta/al/chrome npm test
+```
 
-Por ahora eso se revisa **a ojo**, abriendo `app/finanzas.html` y probando.
+## Qué revisan
 
-## Para rehacerlas
+| Grupo | Qué comprueba |
+|---|---|
+| **La app arranca bien** | Que abra sola desde el archivo, sin errores. Que estén las 4 pestañas y las 4 tarjetas en el orden correcto, negras las BLACK y doradas las GOLD. |
+| **Cargar un gasto** | Que avise en qué resumen va a caer **antes** de guardarlo. Que un gasto después del cierre caiga en el mes siguiente. Que las cuotas se repartan. Que el saldo de la tarjeta suba. |
+| **Buscar entre los gastos** | Los filtros por mes, categoría y persona; que se combinen; que el total sea correcto; que el botón de limpiar funcione; que los filtros no se pierdan al cambiar de pestaña. |
+| **Metas de ahorro** | Registrar un aporte, **arreglarlo sin duplicarlo**, cambiar de quién fue, borrarlo, y ver todos cuando hay más de 6. |
+| **La página de una tarjeta** | Que se abra con sus consumos, que "Ya pagué" saque el saldo, que Volver regrese, y que el botón **+** abra el gasto con esa tarjeta ya elegida. |
+| **Inicio** | Que muestre el porcentaje gastado y que avise cuando te pasaste del sueldo. |
 
-La herramienta natural sería Playwright, que ya viene instalado en este entorno.
-Cada prueba abriría `app/finanzas.html` como archivo local (la app funciona sola,
-sin la parte compartida: guarda en el navegador).
+## Un detalle que hace tropezar
+
+En pantalla, la plata se escribe con un **espacio especial** entre el `$` y el
+número (uno que no se parte al final del renglón). Se ve igual que un espacio
+común pero no lo es. Por eso, al comparar textos con plata, las pruebas usan
+`\s` en vez de un espacio escrito a mano.
+
+Lo mismo con los títulos que el diseño pone en MAYÚSCULAS: en el código dicen
+"Vence" pero en pantalla se leen "VENCE", así que esas comparaciones no
+distinguen mayúsculas.
+
+## Historia
+
+Acá había 12 pruebas que se perdieron cuando el repositorio quedó vacío (ver el
+historial en [../MEMORIA.md](../MEMORIA.md)). No se pudieron recuperar porque,
+a diferencia de la app, nunca estuvieron publicadas en ningún lado.
+
+Estas 33 son nuevas, escritas de cero.

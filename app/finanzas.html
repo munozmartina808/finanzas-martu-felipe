@@ -272,6 +272,13 @@ dialog h3{font-size:17px;font-weight:800}
 .fechas-clave .destacado .v{color:var(--acento-ink)}
 .cat{display:inline-block;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
 
+/* ---------- filtros de la lista de gastos ---------- */
+.filtros{padding:13px 16px}
+.filtros-campos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.filtros-campos label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-bottom:4px}
+.filtros-campos select{font-size:13.5px;padding:7px 9px}
+@media (max-width:520px){.filtros-campos{grid-template-columns:1fr;gap:9px}}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:520px){
   .cifra-xl{font-size:29px} .campos-2{grid-template-columns:1fr}
@@ -453,7 +460,7 @@ dialog h3{font-size:17px;font-weight:800}
 <dialog id="dlg-aporte">
   <form method="dialog" id="form-aporte">
     <div class="dlg-cuerpo">
-      <h3>Registrar aporte</h3>
+      <h3 id="titulo-aporte">Registrar aporte</h3>
       <p class="pista" id="aporte-meta" style="margin:6px 0 16px"></p>
       <div class="campos-2">
         <div class="campo">
@@ -471,6 +478,7 @@ dialog h3{font-size:17px;font-weight:800}
       </div>
     </div>
     <div class="dlg-pie">
+      <button type="button" class="btn" id="borrar-aporte" style="margin-right:auto;color:var(--critico)">Eliminar</button>
       <button type="button" class="btn" data-cerrar>Cancelar</button>
       <button type="submit" class="btn primario">Guardar</button>
     </div>
@@ -695,6 +703,20 @@ function panelAhorros(metas, aportes, hoy) {
 
 const mesDe = (iso) => iso.slice(0, 7);
 
+/* — FILTROS de la lista de gastos. Un filtro vacío quiere decir "todos". */
+function filtrarGastos(gastos, filtros = {}) {
+  const { mes, categoria, persona } = filtros;
+  return gastos.filter((g) =>
+    (!mes || mesDe(g.fecha) === mes)
+    && (!categoria || g.categoria === categoria)
+    && (!persona || g.persona === persona));
+}
+
+/* Los meses que tienen algún gasto, del más nuevo al más viejo. */
+function mesesConGastos(gastos) {
+  return [...new Set(gastos.map((g) => mesDe(g.fecha)))].sort().reverse();
+}
+
 function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados }) {
   const ingresoCentavos = sumar(Object.values(sueldos || {}));
   const gastoDirectoCentavos = sumar(gastos.filter((g) => !g.tarjetaId && mesDe(g.fecha) === mes).map((g) => g.montoCentavos));
@@ -866,7 +888,9 @@ const ICONO_VOLVER = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none
 const ICONO_MAS = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
 let renderPendiente = false;
-let tarjetaAbierta = null;   // id de la tarjeta cuyo detalle se está mirando
+let tarjetaAbierta = null;              // id de la tarjeta cuyo detalle se está mirando
+const metasDesplegadas = new Set();     // metas que muestran TODOS sus aportes, no sólo 6
+const filtros = { mes: '', categoria: '', persona: '' };   // vacío = "todos"
 
 function render() {
   if (document.querySelector('dialog[open]')) { renderPendiente = true; return; }
@@ -1136,23 +1160,60 @@ function barraCiclo(t, hoy) {
 }
 
 /* ---------- GASTOS ---------- */
+/* Los filtros de arriba de la lista. Se dibujan solos con lo que hay cargado:
+   sólo aparecen los meses, las categorías y las personas que existen de verdad. */
+function barraFiltros() {
+  const hayFiltro = Boolean(filtros.mes || filtros.categoria || filtros.persona);
+  const usadas = new Set(DATOS.gastos.map((g) => g.categoria).filter(Boolean));
+  const quienes = new Set(DATOS.gastos.map((g) => g.persona).filter(Boolean));
+
+  const select = (clave, todos, items, etiquetas) => `
+    <div>
+      <label for="filtro-${clave}">${etiquetas}</label>
+      <select id="filtro-${clave}" data-filtro="${clave}">
+        <option value="">${todos}</option>
+        ${items.map((i) => `<option value="${escapar(i.v)}"${filtros[clave] === i.v ? ' selected' : ''}>${escapar(i.t)}</option>`).join('')}
+      </select>
+    </div>`;
+
+  return `
+    <div class="caja filtros">
+      <div class="filtros-campos">
+        ${select('mes', 'Todos los meses', mesesConGastos(DATOS.gastos).map((m) => ({ v: m, t: cicloBonito(m) })), 'Mes')}
+        ${select('categoria', 'Todas', CATEGORIAS.filter((c) => usadas.has(c)).map((c) => ({ v: c, t: c })), 'Categoría')}
+        ${select('persona', 'Los dos', personas().filter((p) => quienes.has(p)).map((p) => ({ v: p, t: p })), 'Quién')}
+      </div>
+      ${hayFiltro ? `<button class="btn chico" data-accion="limpiar-filtros" style="margin-top:11px">Ver todos los gastos</button>` : ''}
+    </div>`;
+}
+
 function pintarGastos(hoy) {
   const porTarjeta = Object.fromEntries(DATOS.tarjetas.map((t) => [t.id, t]));
-  const orden = DATOS.gastos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id));
+  const visibles = filtrarGastos(DATOS.gastos, filtros);
+  const orden = visibles.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id));
+  const total = sumar(orden.map((g) => g.montoCentavos));
+  const hayFiltro = Boolean(filtros.mes || filtros.categoria || filtros.persona);
 
   const cabecera = `
     <div class="fila-entre">
-      <span class="eyebrow">${DATOS.gastos.length} ${DATOS.gastos.length === 1 ? 'gasto' : 'gastos'}</span>
+      <span class="eyebrow">${orden.length} ${orden.length === 1 ? 'gasto' : 'gastos'}${
+        hayFiltro ? ` de ${DATOS.gastos.length}` : ''} · ${formatear(total)}</span>
       <button class="btn primario chico" data-accion="nuevo-gasto">Cargar gasto</button>
     </div>`;
 
-  if (!orden.length) {
+  if (!DATOS.gastos.length) {
     document.getElementById('panel-gastos').innerHTML = cabecera +
       `<div class="caja"><div class="vacio">Sin gastos cargados.<br>Cargá uno y te digo solo en qué resumen cae.</div></div>`;
     return;
   }
 
-  document.getElementById('panel-gastos').innerHTML = cabecera + `
+  if (!orden.length) {
+    document.getElementById('panel-gastos').innerHTML = cabecera + barraFiltros() +
+      `<div class="caja"><div class="vacio">Ningún gasto coincide con lo que buscás.<br>Probá sacando algún filtro.</div></div>`;
+    return;
+  }
+
+  document.getElementById('panel-gastos').innerHTML = cabecera + barraFiltros() + `
     <div class="caja"><ul class="lista">
       ${orden.map((g) => {
         const t = porTarjeta[g.tarjetaId];
@@ -1237,13 +1298,17 @@ function pintarAhorros(ahorros, hoy) {
         <div style="margin-top:14px"><button class="btn chico" data-accion="nuevo-aporte" data-id="${m.meta.id}">Registrar aporte</button></div>
       </div>
       ${m.aportes.length ? `<ul class="lista" style="border-top:1px solid var(--linea)">
-        ${m.aportes.slice(0, 6).map((a) => `<li>
+        ${(metasDesplegadas.has(m.meta.id) ? m.aportes : m.aportes.slice(0, 6)).map((a) => `<li>
           <div class="crece"><div class="titulo">${escapar(a.persona || 'Sin asignar')}</div>
             <div class="meta"><span class="mono">${fechaLarga(a.fecha)}</span></div></div>
           <span class="monto">${formatear(a.montoCentavos)}</span>
-          <button class="btn icono" data-accion="borrar-aporte" data-id="${a.id}" aria-label="Borrar aporte">×</button>
+          <button class="btn icono" data-accion="editar-aporte" data-id="${a.id}"
+            aria-label="Editar el aporte de ${escapar(a.persona || 'sin asignar')} del ${fechaLarga(a.fecha)}">${ICONO_EDITAR}</button>
         </li>`).join('')}
-        ${m.aportes.length > 6 ? `<li><span class="crece" style="color:var(--ink-3);font-size:12.5px">y ${m.aportes.length - 6} aportes más</span></li>` : ''}
+        ${m.aportes.length > 6 ? `<li><button class="btn chico" data-accion="desplegar-aportes" data-id="${m.meta.id}"
+          style="margin:2px auto">${metasDesplegadas.has(m.meta.id)
+            ? 'Ver sólo los últimos 6'
+            : `Ver los ${m.aportes.length} aportes`}</button></li>` : ''}
       </ul>` : ''}
     </div>`).join('');
 }
@@ -1256,7 +1321,7 @@ function pintarAhorros(ahorros, hoy) {
 
 const $ = (s) => document.querySelector(s);
 const personas = () => DATOS.config.personas || ['Felipe', 'Martu'];
-let editando = { tarjeta: null, gasto: null, meta: null, aporteMeta: null };
+let editando = { tarjeta: null, gasto: null, meta: null, aporteMeta: null, aporte: null };
 
 const CATEGORIAS = ['Comida', 'Pedidos', 'Supermercado', 'Viáticos', 'Salidas', 'Servicios', 'Salud', 'Ropa', 'Hogar', 'Otros'];
 
@@ -1445,25 +1510,36 @@ $('#borrar-meta').addEventListener('click', () => {
 });
 
 /* ---------- aportes ---------- */
-function abrirAporte(metaId) {
-  const m = DATOS.metas.find((x) => x.id === metaId);
+/* Se abre de dos maneras: con metaId para cargar uno nuevo, o con aporteId
+   para arreglar uno ya cargado (ahí se completa con lo que tenía). */
+function abrirAporte(metaId, aporteId) {
+  const a = aporteId ? DATOS.aportes.find((x) => x.id === aporteId) : null;
+  const m = DATOS.metas.find((x) => x.id === (a ? a.metaId : metaId));
   if (!m) return;
-  editando.aporteMeta = metaId;
+  editando.aporteMeta = m.id;
+  editando.aporte = a ? a.id : null;
+  $('#titulo-aporte').textContent = a ? 'Editar aporte' : 'Registrar aporte';
   $('#aporte-meta').textContent = `Para "${m.nombre}".`;
+  $('#borrar-aporte').hidden = !a;
   const f = $('#form-aporte');
-  opciones(f.persona, personas().map((p) => ({ v: p, t: p })), personas()[0]);
-  f.monto.value = '';
-  f.fecha.value = hoyISO();
+  opciones(f.persona, personas().map((p) => ({ v: p, t: p })), a ? a.persona : personas()[0]);
+  f.monto.value = a ? a.montoCentavos / 100 : '';
+  f.fecha.value = a ? a.fecha : hoyISO();
   $('#dlg-aporte').showModal();
 }
 $('#form-aporte').addEventListener('submit', (e) => {
   const f = e.target;
-  guardar('aportes', nuevoId(), {
+  guardar('aportes', editando.aporte || nuevoId(), {
     metaId: editando.aporteMeta,
     montoCentavos: aCentavos(f.monto.value || 0),
     fecha: f.fecha.value,
     persona: f.persona.value,
   });
+});
+$('#borrar-aporte').addEventListener('click', () => {
+  if (!confirm('¿Borrar este aporte?')) return;
+  borrar('aportes', editando.aporte);
+  $('#dlg-aporte').close();
 });
 
 /* ---------- acciones ---------- */
@@ -1481,8 +1557,27 @@ document.addEventListener('click', (e) => {
   else if (accion === 'nueva-meta') abrirMeta(null);
   else if (accion === 'editar-meta') abrirMeta(id);
   else if (accion === 'nuevo-aporte') abrirAporte(id);
-  else if (accion === 'borrar-aporte') { if (confirm('¿Borrar este aporte?')) borrar('aportes', id); }
+  else if (accion === 'editar-aporte') abrirAporte(null, id);
+  else if (accion === 'desplegar-aportes') {
+    if (metasDesplegadas.has(id)) metasDesplegadas.delete(id); else metasDesplegadas.add(id);
+    render();
+  }
+  else if (accion === 'limpiar-filtros') {
+    filtros.mes = ''; filtros.categoria = ''; filtros.persona = '';
+    render();
+  }
   else if (accion === 'pagar') alternarPago(clave);
+});
+
+/* Los filtros: al cambiar uno, se vuelve a dibujar la lista. Como al dibujar
+   se rehace el desplegable, le devolvemos el foco para poder seguir tocando. */
+document.addEventListener('change', (e) => {
+  const clave = e.target.dataset && e.target.dataset.filtro;
+  if (!clave) return;
+  filtros[clave] = e.target.value;
+  render();
+  const vuelto = document.getElementById('filtro-' + clave);
+  if (vuelto) vuelto.focus();
 });
 
 render();
