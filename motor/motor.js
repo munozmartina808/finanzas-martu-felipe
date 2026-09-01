@@ -41,7 +41,11 @@ const NOMBRES = [
   'resumenDeTarjeta', 'panelTarjetas',
   'mesesHasta', 'progresoDeMeta', 'panelAhorros',
   'mesDe', 'balanceMensual', 'filtrarGastos', 'mesesConGastos',
-  'escapar', 'fechaCorta', 'MESES',
+  'escapar', 'fechaCorta', 'cicloBonito', 'MESES',
+  'diasDelCiclo', 'cicloDeFechaEnTarjeta', 'cierreDeTarjeta', 'vencimientoDeTarjeta',
+  'cicloSiguiente', 'mesSiguiente', 'mesesEntre', 'HORIZONTE_FIJOS',
+  'gastoPesaEnMes', 'comoVieneElMes', 'porCategoria', 'fijosYVariables',
+  'panelMillas', 'historialMensual',
 ];
 
 /* Saca el texto del motor de adentro del HTML. */
@@ -74,5 +78,9 @@ export const {
   resumenDeTarjeta, panelTarjetas,
   mesesHasta, progresoDeMeta, panelAhorros,
   mesDe, balanceMensual, filtrarGastos, mesesConGastos,
-  escapar, fechaCorta, MESES,
+  escapar, fechaCorta, cicloBonito, MESES,
+  diasDelCiclo, cicloDeFechaEnTarjeta, cierreDeTarjeta, vencimientoDeTarjeta,
+  cicloSiguiente, mesSiguiente, mesesEntre, HORIZONTE_FIJOS,
+  gastoPesaEnMes, comoVieneElMes, porCategoria, fijosYVariables,
+  panelMillas, historialMensual,
 } = motor;

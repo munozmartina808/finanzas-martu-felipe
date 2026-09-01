@@ -272,6 +272,39 @@ dialog h3{font-size:17px;font-weight:800}
 .fechas-clave .destacado .v{color:var(--acento-ink)}
 .cat{display:inline-block;padding:2px 7px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:600}
 
+/* ---------- elegir cómo se paga (un pago / cuotas / fijo) ---------- */
+.opciones-pago{display:flex;flex-direction:column;gap:7px}
+.opcion-pago{
+  display:flex;align-items:flex-start;gap:10px;margin:0;cursor:pointer;font-weight:400;
+  padding:10px 12px;border:1px solid var(--linea);border-radius:var(--r-sm);background:var(--surface);
+  transition:border-color .15s,background .15s;
+}
+.opcion-pago:hover{background:var(--surface-2)}
+.opcion-pago input{width:auto;margin:2px 0 0;flex:none;accent-color:var(--acento)}
+.opcion-pago span{display:block;line-height:1.35}
+.opcion-pago b{display:block;font-size:14px;font-weight:600;color:var(--ink)}
+.opcion-pago small{display:block;font-size:12px;color:var(--ink-3);margin-top:1px}
+.opcion-pago:has(input:checked){border-color:var(--acento);background:var(--acento-suave)}
+.opcion-pago:has(input:focus-visible){outline:2px solid var(--acento);outline-offset:2px}
+
+/* ---------- el gráfico de en qué se fue la plata ---------- */
+.lista-pelada{list-style:none;margin:0;padding:0}
+.lista-pelada > li{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--linea)}
+.lista-pelada > li:first-child{border-top:0}
+.cat-fila{display:block!important;padding:9px 0}
+.cat-alto{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:5px}
+.cat-nombre{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-monto{font-size:13.5px;font-weight:600;white-space:nowrap}
+.cat-pct{color:var(--ink-3);font-weight:500;font-size:12px}
+.cat-pista{height:7px;border-radius:99px;background:var(--surface-2);border:1px solid var(--linea);overflow:hidden}
+.cat-pista i{display:block;height:100%;background:var(--acento);border-radius:99px;transition:width .5s cubic-bezier(.2,.7,.3,1)}
+
+/* ---------- cómo viene el mes que viene ---------- */
+.mes-proximo{border-color:var(--acento-suave)}
+.mes-proximo .caja-cabecera{background:var(--acento-suave);border-radius:var(--r) var(--r) 0 0;border-bottom-color:transparent}
+.mes-proximo .caja-cabecera h2{color:var(--acento-ink)}
+.mes-proximo .caja-cabecera .eyebrow{color:var(--acento-ink);opacity:.8}
+
 /* ---------- filtros de la lista de gastos ---------- */
 .filtros{padding:13px 16px}
 .filtros-campos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -297,6 +330,9 @@ dialog h3{font-size:17px;font-weight:800}
       <button class="pestana" role="tab" aria-selected="false" data-tab="tarjetas">Tarjetas</button>
       <button class="pestana" role="tab" aria-selected="false" data-tab="gastos">Gastos</button>
       <button class="pestana" role="tab" aria-selected="false" data-tab="ahorros">Ahorros</button>
+      <button class="pestana" role="tab" aria-selected="false" data-tab="historial">Historial</button>
+      <button class="pestana" role="tab" aria-selected="false" data-tab="sueldo">Sueldo</button>
+      <button class="pestana" role="tab" aria-selected="false" data-tab="millas">Millas</button>
     </nav>
   </header>
 
@@ -305,6 +341,9 @@ dialog h3{font-size:17px;font-weight:800}
     <section class="panel pila" id="panel-tarjetas" role="tabpanel" hidden></section>
     <section class="panel pila" id="panel-gastos" role="tabpanel" hidden></section>
     <section class="panel pila" id="panel-ahorros" role="tabpanel" hidden></section>
+    <section class="panel pila" id="panel-historial" role="tabpanel" hidden></section>
+    <section class="panel pila" id="panel-sueldo" role="tabpanel" hidden></section>
+    <section class="panel pila" id="panel-millas" role="tabpanel" hidden></section>
   </main>
 </div>
 
@@ -408,9 +447,26 @@ dialog h3{font-size:17px;font-weight:800}
         <label for="g-categoria">Categoría</label>
         <select id="g-categoria" name="categoria"></select>
       </div>
+      <div class="campo">
+        <label>Cómo se paga</label>
+        <div class="opciones-pago">
+          <label class="opcion-pago">
+            <input type="radio" name="tipoPago" value="unico" checked>
+            <span><b>Un solo pago</b><small>se paga entero de una vez</small></span>
+          </label>
+          <label class="opcion-pago">
+            <input type="radio" name="tipoPago" value="cuotas">
+            <span><b>En cuotas</b><small>se reparte en varios resúmenes</small></span>
+          </label>
+          <label class="opcion-pago">
+            <input type="radio" name="tipoPago" value="fijo">
+            <span><b>Gasto fijo</b><small>se repite todos los meses</small></span>
+          </label>
+        </div>
+      </div>
       <div class="campos-2">
-        <div class="campo">
-          <label for="g-cuotas">Cuotas</label>
+        <div class="campo" id="campo-cuotas" hidden>
+          <label for="g-cuotas">Cuántas cuotas</label>
           <select id="g-cuotas" name="cuotas"></select>
         </div>
         <div class="campo">
@@ -485,6 +541,61 @@ dialog h3{font-size:17px;font-weight:800}
   </form>
 </dialog>
 
+<dialog id="dlg-categoria">
+  <form method="dialog" id="form-categoria">
+    <div class="dlg-cuerpo">
+      <h3>Nueva categoría</h3>
+      <p class="pista" style="margin:6px 0 16px">Queda guardada y aparece siempre.</p>
+      <div class="campo">
+        <label for="c-nombre">Nombre</label>
+        <input id="c-nombre" name="nombre" required maxlength="28" placeholder="Veterinaria">
+      </div>
+      <div class="campo">
+        <label>¿Se repite todos los meses?</label>
+        <div class="opciones-pago">
+          <label class="opcion-pago">
+            <input type="radio" name="tipo" value="variable" checked>
+            <span><b>No, es variable</b><small>cambia según el mes</small></span>
+          </label>
+          <label class="opcion-pago">
+            <input type="radio" name="tipo" value="fijo">
+            <span><b>Sí, es fija</b><small>como el alquiler o la psicóloga</small></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-pie">
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn primario">Agregar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-fechas">
+  <form method="dialog" id="form-fechas">
+    <div class="dlg-cuerpo">
+      <h3 id="titulo-fechas">Fechas del mes</h3>
+      <p class="pista" id="fechas-bajada" style="margin:6px 0 16px"></p>
+      <div class="campos-2">
+        <div class="campo">
+          <label for="fm-cierre">Día de cierre</label>
+          <input id="fm-cierre" name="diaCierre" type="number" min="1" max="31" required>
+        </div>
+        <div class="campo">
+          <label for="fm-venc">Día de vencimiento</label>
+          <input id="fm-venc" name="diaVencimiento" type="number" min="1" max="31" required>
+        </div>
+      </div>
+      <p class="pista" id="fechas-pista"></p>
+    </div>
+    <div class="dlg-pie">
+      <button type="button" class="btn" id="borrar-fechas" style="margin-right:auto;color:var(--critico)">Usar los de siempre</button>
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn primario">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+
 
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -519,6 +630,7 @@ function escapar(s) {
 }
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 function fechaCorta(iso) { const f = parseFecha(iso); return `${f.d} ${MESES[f.m - 1]}`; }
+function cicloBonito(id) { const [y, m] = id.split('-'); return `${MESES[+m - 1]} ${y}`; }
 
 const aCentavos = (p) => Math.round(Number(p) * 100);
 const sumar = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -583,24 +695,73 @@ function vencimientoDeCiclo(c, diaCierre, diaVenc) {
   return formatFecha({ y: s.y, m: s.m, d: clampDia(s.y, s.m, diaVenc) });
 }
 
-function cuotasDeGasto(gasto, tarjeta) {
+/* ── EL CIERRE Y EL VENCIMIENTO CAMBIAN TODOS LOS MESES ──
+   Los bancos no cierran siempre el mismo día. Cada tarjeta guarda un día
+   "de siempre" (diaCierre / diaVencimiento) y, opcionalmente, los días
+   reales de cada mes en t.ciclos:
+
+       t.ciclos = { '2026-09': { diaCierre: 27, diaVencimiento: 12, confirmado: true } }
+
+   Si un mes no está cargado, se usa el día de siempre y la app avisa para
+   que lo completes. */
+function diasDelCiclo(t, ciclo) {
+  const o = (t.ciclos || {})[cicloId(ciclo)] || {};
+  return {
+    diaCierre: o.diaCierre || t.diaCierre,
+    diaVencimiento: o.diaVencimiento || t.diaVencimiento,
+    confirmado: Boolean(o.confirmado),
+  };
+}
+
+/* La regla del ciclo, pero mirando el día de cierre REAL de ese mes. */
+function cicloDeFechaEnTarjeta(fechaISO, t) {
+  const f = parseFecha(fechaISO);
+  return cicloDeFecha(fechaISO, diasDelCiclo(t, { y: f.y, m: f.m }).diaCierre);
+}
+const cierreDeTarjeta = (t, c) => cierreDeCiclo(c, diasDelCiclo(t, c).diaCierre);
+function vencimientoDeTarjeta(t, c) {
+  const { diaCierre, diaVencimiento } = diasDelCiclo(t, c);
+  return vencimientoDeCiclo(c, diaCierre, diaVencimiento);
+}
+
+const cicloSiguiente = (c, n = 1) => {
+  const s = sumarMeses({ y: c.y, m: c.m, d: 1 }, n);
+  return { y: s.y, m: s.m };
+};
+const mesSiguiente = (mes, n = 1) => cicloId(cicloSiguiente({ y: +mes.slice(0, 4), m: +mes.slice(5, 7) }, n));
+const mesesEntre = (a, b) => (b.y * 12 + b.m) - (a.y * 12 + a.m);
+
+/* Cuántos meses hacia adelante se proyecta un gasto fijo. */
+const HORIZONTE_FIJOS = 12;
+
+/* En qué resúmenes cae un gasto y con cuánto en cada uno.
+   - un pago  → un solo resumen
+   - cuotas   → resúmenes seguidos, sumando el total exacto
+   - fijo     → todos los meses, el monto entero, desde que arranca */
+function cuotasDeGasto(gasto, tarjeta, hastaCiclo) {
+  const base = cicloDeFechaEnTarjeta(gasto.fecha, tarjeta);
+  const arma = (montoCentavos, i, de, fijo) => {
+    const c = cicloSiguiente(base, i);
+    return { ciclo: c, cicloId: cicloId(c), numero: i + 1, de, montoCentavos, fijo: Boolean(fijo) };
+  };
+  if (gasto.tipoPago === 'fijo') {
+    const tope = hastaCiclo || cicloSiguiente(base, HORIZONTE_FIJOS);
+    const n = Math.max(1, mesesEntre(base, tope) + 1);
+    return Array.from({ length: n }, (_, i) => arma(gasto.montoCentavos, i, n, true));
+  }
   const n = Math.max(1, Math.trunc(gasto.cuotas || 1));
-  const base = cicloDeFecha(gasto.fecha, tarjeta.diaCierre);
-  return repartir(gasto.montoCentavos, n).map((montoCentavos, i) => {
-    const c = sumarMeses({ y: base.y, m: base.m, d: 1 }, i);
-    return { ciclo: { y: c.y, m: c.m }, cicloId: cicloId({ y: c.y, m: c.m }), numero: i + 1, de: n, montoCentavos };
-  });
+  return repartir(gasto.montoCentavos, n).map((m, i) => arma(m, i, n, false));
 }
 
 const millasDe = (c, porMil) => Math.round(((c / 100 / 1000) * (porMil || 0)) * 100) / 100;
 
 function financiacion(t, hoy) {
-  const cHoy = cicloDeFecha(hoy, t.diaCierre);
-  const cierre = cierreDeCiclo(cHoy, t.diaCierre);
-  const venc = vencimientoDeCiclo(cHoy, t.diaCierre, t.diaVencimiento);
+  const cHoy = cicloDeFechaEnTarjeta(hoy, t);
+  const cierre = cierreDeTarjeta(t, cHoy);
+  const venc = vencimientoDeTarjeta(t, cHoy);
   const despues = formatFecha(sumarDias(parseFecha(cierre), 1));
-  const cSig = cicloDeFecha(despues, t.diaCierre);
-  const vencSig = vencimientoDeCiclo(cSig, t.diaCierre, t.diaVencimiento);
+  const cSig = cicloDeFechaEnTarjeta(despues, t);
+  const vencSig = vencimientoDeTarjeta(t, cSig);
   const hoyF = diasEntre(hoy, venc), esperoF = diasEntre(despues, vencSig);
   return {
     proximoCierre: cierre, diasHastaCierre: diasEntre(hoy, cierre),
@@ -615,18 +776,20 @@ function resumenDeTarjeta(t, gastos, hoy, pagados = []) {
   const tocar = (ciclo) => {
     const id = cicloId(ciclo);
     if (!porCiclo.has(id)) porCiclo.set(id, {
-      cicloId: id, ciclo, cierre: cierreDeCiclo(ciclo, t.diaCierre),
-      vencimiento: vencimientoDeCiclo(ciclo, t.diaCierre, t.diaVencimiento),
+      cicloId: id, ciclo, cierre: cierreDeTarjeta(t, ciclo),
+      vencimiento: vencimientoDeTarjeta(t, ciclo),
+      fechasConfirmadas: diasDelCiclo(t, ciclo).confirmado,
       items: [], totalCentavos: 0, millas: 0, estado: 'abierto',
     });
     return porCiclo.get(id);
   };
-  for (const g of mios) for (const q of cuotasDeGasto(g, t)) {
+  const cicloHoy = cicloDeFechaEnTarjeta(hoy, t);
+  const tope = cicloSiguiente(cicloHoy, HORIZONTE_FIJOS);
+  for (const g of mios) for (const q of cuotasDeGasto(g, t, tope)) {
     const e = tocar(q.ciclo);
-    e.items.push({ gastoId: g.id, descripcion: g.descripcion, fecha: g.fecha, persona: g.persona || null, categoria: g.categoria || null, cuota: q.numero, deCuotas: q.de, montoCentavos: q.montoCentavos });
+    e.items.push({ gastoId: g.id, descripcion: g.descripcion, fecha: g.fecha, persona: g.persona || null, categoria: g.categoria || null, cuota: q.numero, deCuotas: q.de, montoCentavos: q.montoCentavos, fijo: q.fijo });
     e.totalCentavos += q.montoCentavos;
   }
-  const cicloHoy = cicloDeFecha(hoy, t.diaCierre);
   tocar(cicloHoy);
 
   const ciclos = [...porCiclo.values()].sort((a, b) => a.cicloId.localeCompare(b.cicloId));
@@ -660,6 +823,15 @@ function resumenDeTarjeta(t, gastos, hoy, pagados = []) {
   }
   for (const v of vencidos) alertas.push({ tipo: 'vencido', nivel: 'critico', tarjeta: t.nombre,
     mensaje: `<b>${escapar(t.nombre)}</b>: el resumen de ${v.cicloId} venció el ${fechaCorta(v.vencimiento)} y figura impago.` });
+
+  /* El banco cambia el cierre y el vencimiento todos los meses. Mientras no
+     estén confirmados los de ESTE mes, la app lo pide. */
+  if (!diasDelCiclo(t, cicloHoy).confirmado) alertas.push({
+    tipo: 'fechas-sin-confirmar', nivel: 'aviso', tarjeta: t.nombre, cicloId: cicloId(cicloHoy),
+    mensaje: `<b>${escapar(t.nombre)}</b>: falta confirmar el cierre y el vencimiento de `
+      + `${cicloBonito(cicloId(cicloHoy))}. Por ahora se usan los de siempre `
+      + `(cierra ${t.diaCierre}, vence ${t.diaVencimiento}).`,
+  });
 
   return {
     tarjeta: t, ciclos, enCurso, proximoAPagar, siguientes, vencidos, comprometidoCentavos,
@@ -745,9 +917,17 @@ function mesesConGastos(gastos) {
   return [...new Set(gastos.map((g) => mesDe(g.fecha)))].sort().reverse();
 }
 
+/* ¿Este gasto pesa en tal mes?
+   Los de un pago o en cuotas pesan el mes en que se hicieron.
+   Los FIJOS (alquiler, psicóloga...) pesan todos los meses desde que arrancan. */
+function gastoPesaEnMes(g, mes) {
+  const desde = mesDe(g.fecha);
+  return g.tipoPago === 'fijo' ? desde <= mes : desde === mes;
+}
+
 function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados }) {
   const ingresoCentavos = sumar(Object.values(sueldos || {}));
-  const gastoDirectoCentavos = sumar(gastos.filter((g) => !g.tarjetaId && mesDe(g.fecha) === mes).map((g) => g.montoCentavos));
+  const gastoDirectoCentavos = sumar(gastos.filter((g) => !g.tarjetaId && gastoPesaEnMes(g, mes)).map((g) => g.montoCentavos));
   const pagos = [];
   for (const t of tarjetas) {
     for (const c of resumenDeTarjeta(t, gastos, hoy, pagados).ciclos) {
@@ -763,8 +943,93 @@ function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados 
   return {
     mes, ingresoCentavos, gastoDirectoCentavos, pagos, pagosDeTarjetasCentavos,
     aportesAhorroCentavos, egresosCentavos, disponibleCentavos: ingresoCentavos - egresosCentavos,
-    consumoCentavos: sumar(gastos.filter((g) => mesDe(g.fecha) === mes).map((g) => g.montoCentavos)),
+    consumoCentavos: sumar(gastos.filter((g) => gastoPesaEnMes(g, mes)).map((g) => g.montoCentavos)),
   };
+}
+
+/* ── CÓMO VIENE EL MES QUE VIENE ──
+   No es un borrador: es lo que YA está comprometido para el mes siguiente.
+   Los resúmenes de tarjeta que vencen ahí, las cuotas que caen, los gastos
+   fijos que se repiten y los aportes al ahorro. */
+function comoVieneElMes({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados }) {
+  const b = balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados });
+  const comprometidoCentavos = b.gastoDirectoCentavos + b.pagosDeTarjetasCentavos;
+  return {
+    ...b, comprometidoCentavos,
+    quedaCentavos: b.ingresoCentavos - comprometidoCentavos,
+    porcentajeComprometido: b.ingresoCentavos > 0
+      ? Math.round((comprometidoCentavos / b.ingresoCentavos) * 100) : 0,
+    alcanza: b.ingresoCentavos === 0 || comprometidoCentavos <= b.ingresoCentavos,
+  };
+}
+
+/* ── EN QUÉ SE NOS FUE LA PLATA ──
+   Agrupa los gastos por categoría, de mayor a menor, con su porcentaje.
+   `tipos` dice cuáles categorías son fijas: { Alquiler: 'fijo', Comida: 'variable' } */
+function porCategoria(gastos, tipos = {}) {
+  const acum = new Map();
+  for (const g of gastos) {
+    const nombre = g.categoria || 'Sin categoría';
+    acum.set(nombre, (acum.get(nombre) || 0) + g.montoCentavos);
+  }
+  const totalCentavos = sumar([...acum.values()]);
+  return {
+    totalCentavos,
+    categorias: [...acum.entries()]
+      .map(([categoria, montoCentavos]) => ({
+        categoria, montoCentavos, tipo: tipos[categoria] || 'variable',
+        porcentaje: totalCentavos > 0 ? Math.round((montoCentavos / totalCentavos) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.montoCentavos - a.montoCentavos || a.categoria.localeCompare(b.categoria)),
+  };
+}
+
+/* Separa una lista de gastos en fijos y variables, con sus totales.
+   FIJO quiere decir una sola cosa: se repite todos los meses. Es lo mismo que
+   usa el balance para proyectar, así que lo que se ve agrupado como fijo es
+   exactamente lo que se va a repetir. La categoría no alcanza para decidirlo:
+   una categoría fija sólo hace que el formulario lo marque solo. */
+function fijosYVariables(gastos) {
+  const esFijo = (g) => g.tipoPago === 'fijo';
+  const fijos = gastos.filter(esFijo);
+  const variables = gastos.filter((g) => !esFijo(g));
+  return {
+    fijos, variables,
+    fijosCentavos: sumar(fijos.map((g) => g.montoCentavos)),
+    variablesCentavos: sumar(variables.map((g) => g.montoCentavos)),
+  };
+}
+
+/* ── MILLAS ── cuántas suma cada tarjeta y cuántas hay en total. */
+function panelMillas(tarjetas, gastos, hoy, pagados = []) {
+  const porTarjeta = tarjetas.map((t) => {
+    const r = resumenDeTarjeta(t, gastos, hoy, pagados);
+    return {
+      tarjeta: t, millas: r.millasTotales, millasPorMil: t.millasPorMil || 0,
+      gastadoCentavos: sumar(r.ciclos.map((c) => c.totalCentavos)),
+      millasDelMes: (r.enCurso ? r.enCurso.millas : 0),
+    };
+  });
+  return {
+    porTarjeta,
+    total: Math.round(sumar(porTarjeta.map((x) => x.millas)) * 100) / 100,
+    delMes: Math.round(sumar(porTarjeta.map((x) => x.millasDelMes)) * 100) / 100,
+    sinConfigurar: porTarjeta.filter((x) => !x.millasPorMil).map((x) => x.tarjeta.nombre),
+  };
+}
+
+/* ── HISTORIAL ── cómo fue cada mes que ya pasó, del más nuevo al más viejo. */
+function historialMensual({ gastos, tarjetas, aportes, sueldos, hoy, pagados = [], desde }) {
+  const mesHoy = mesDe(hoy);
+  const conFecha = gastos.map((g) => mesDe(g.fecha)).concat(aportes.map((a) => mesDe(a.fecha)));
+  const primero = desde || (conFecha.length ? conFecha.slice().sort()[0] : mesHoy);
+  const meses = [];
+  for (let m = primero; m <= mesHoy; m = mesSiguiente(m)) meses.push(m);
+  return meses.reverse().map((mes) => {
+    const b = balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados });
+    const delMes = gastos.filter((g) => gastoPesaEnMes(g, mes));
+    return { ...b, esMesActual: mes === mesHoy, cantidadGastos: delMes.length, gastos: delMes };
+  });
 }
 
 /* ▲▲▲ TERMINA EL MOTOR ▲▲▲ */
@@ -777,7 +1042,32 @@ function balanceMensual({ mes, sueldos, gastos, tarjetas, aportes, hoy, pagados 
    guardando en el navegador. Nunca se queda en blanco.
    ══════════════════════════════════════════════════════════════ */
 
-const CONFIG_DEF = { sueldos: {}, personas: ['Felipe', 'Martu'] };
+/* Las categorías que vienen de fábrica. Se pueden agregar más desde la app,
+   y quedan guardadas en config. Cada una es fija (todos los meses lo mismo)
+   o variable (cambia según el mes). */
+const CATEGORIAS_DEF = [
+  { nombre: 'Alquiler', tipo: 'fijo' },
+  { nombre: 'Expensas', tipo: 'fijo' },
+  { nombre: 'Tarjeta', tipo: 'fijo' },
+  { nombre: 'Psicóloga', tipo: 'fijo' },
+  { nombre: 'Cerámica', tipo: 'fijo' },
+  { nombre: 'Servicios', tipo: 'fijo' },
+  { nombre: 'Internet y celular', tipo: 'fijo' },
+  { nombre: 'Gimnasio', tipo: 'fijo' },
+  { nombre: 'Suscripciones', tipo: 'fijo' },
+  { nombre: 'Comida', tipo: 'variable' },
+  { nombre: 'Pedidos', tipo: 'variable' },
+  { nombre: 'Supermercado', tipo: 'variable' },
+  { nombre: 'Viáticos', tipo: 'variable' },
+  { nombre: 'Salidas', tipo: 'variable' },
+  { nombre: 'Salud', tipo: 'variable' },
+  { nombre: 'Ropa', tipo: 'variable' },
+  { nombre: 'Hogar', tipo: 'variable' },
+  { nombre: 'Regalos', tipo: 'variable' },
+  { nombre: 'Otros', tipo: 'variable' },
+];
+
+const CONFIG_DEF = { sueldos: {}, personas: ['Felipe', 'Martu'], categorias: CATEGORIAS_DEF };
 const DATOS = { config: { ...CONFIG_DEF }, tarjetas: [], gastos: [], metas: [], aportes: [], pagos: [] };
 const COLECCIONES = ['tarjetas', 'gastos', 'metas', 'aportes'];
 const CLAVE_LOCAL = 'cierres-y-metas-v1';
@@ -788,8 +1078,13 @@ const nuevoId = () => 'x' + Date.now().toString(36) + Math.random().toString(36)
 /* escapar, MESES y fechaCorta se mudaron arriba, al bloque del MOTOR, porque
    el motor los necesita para escribir las alertas. Siguen disponibles acá. */
 function fechaLarga(iso) { const f = parseFecha(iso); return `${f.d} ${MESES[f.m - 1]} ${f.y}`; }
-function cicloBonito(id) { const [y, m] = id.split('-'); return `${MESES[+m - 1]} ${y}`; }
 function enDias(d) { return d === 0 ? 'hoy' : d === 1 ? 'mañana' : `en ${d} días`; }
+
+/* Las categorías cargadas, y un diccionario {nombre: 'fijo'|'variable'}
+   que es lo que el motor necesita para agrupar. */
+const categorias = () => DATOS.config.categorias || CATEGORIAS_DEF;
+const tiposDeCategoria = () => Object.fromEntries(categorias().map((c) => [c.nombre, c.tipo]));
+const esCategoriaFija = (n) => tiposDeCategoria()[n] === 'fijo';
 
 async function iniciarDatos() {
   try {
@@ -932,17 +1227,24 @@ function render() {
     mes: mesDe(hoy), sueldos: DATOS.config.sueldos, gastos, tarjetas,
     aportes: DATOS.aportes, hoy, pagados: DATOS.pagos,
   });
-  pintarInicio(panel, ahorros, bal, hoy);
+  const comun = { sueldos: DATOS.config.sueldos, gastos, tarjetas, aportes: DATOS.aportes, hoy, pagados: DATOS.pagos };
+  const proximo = comoVieneElMes({ ...comun, mes: mesSiguiente(mesDe(hoy)) });
+  const millas = panelMillas(tarjetas, gastos, hoy, DATOS.pagos);
+
+  pintarInicio(panel, ahorros, bal, proximo, hoy);
   pintarTarjetas(panel, hoy);
   pintarGastos(hoy);
   pintarAhorros(ahorros, hoy);
+  pintarHistorial(comun, hoy);
+  pintarSueldo(bal, proximo, hoy);
+  pintarMillas(millas, hoy);
 }
 
 const tarjetasOrdenadas = () =>
   DATOS.tarjetas.slice().sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99) || a.nombre.localeCompare(b.nombre));
 
 /* ══════ INICIO — cuánto tengo y cuánto gasto ══════ */
-function pintarInicio(panel, ahorros, bal, hoy) {
+function pintarInicio(panel, ahorros, bal, proximo, hoy) {
   const sueldo = bal.ingresoCentavos;
   const gastado = bal.consumoCentavos;
   const queda = sueldo - gastado;
@@ -1001,22 +1303,61 @@ function pintarInicio(panel, ahorros, bal, hoy) {
     </div>
 
     <button class="accion-grande" data-accion="nuevo-gasto">${ICONO_MAS} Nuevo gasto</button>
+    ${bloqueMesQueViene(proximo, hoy)}
     ${alertasHtml}
     ${vencHtml}
+`;
+}
 
-    <div class="caja"><div class="caja-cuerpo"><div class="rejilla">
-      <div class="dato"><span class="eyebrow">A pagar este mes</span>
-        <div class="cifra cifra-m">${formatear(bal.pagosDeTarjetasCentavos + bal.gastoDirectoCentavos)}</div>
-        <div class="sub">tarjetas que vencen + efectivo</div></div>
-      <div class="dato"><span class="eyebrow">Deuda con cuotas</span>
-        <div class="cifra cifra-m">${formatear(panel.deudaTotalCentavos)}</div>
-        ${panel.vencidoCentavos ? `<div class="sub" style="color:var(--critico)">${formatear(panel.vencidoCentavos)} vencido</div>` : ''}</div>
-      <div class="dato"><span class="eyebrow">Millas</span>
-        <div class="cifra cifra-m">${panel.millasTotales.toLocaleString('es-AR')}</div></div>
-      <div class="dato"><span class="eyebrow">Ahorrado</span>
-        <div class="cifra cifra-m">${formatear(ahorros.totalAhorradoCentavos)}</div>
-        ${ahorros.totalObjetivoCentavos ? `<div class="sub">${ahorros.porcentajeGlobal}% de las metas</div>` : ''}</div>
-    </div></div></div>`;
+/* ══════ cómo viene el mes que viene ══════
+   No es un borrador ni una estimación: es plata que YA está comprometida.
+   Los resúmenes de tarjeta que vencen el mes que viene, las cuotas que caen
+   y los gastos fijos que se repiten. */
+function bloqueMesQueViene(p, hoy) {
+  const hayAlgo = p.comprometidoCentavos > 0 || p.ingresoCentavos > 0;
+  if (!hayAlgo) return '';
+  const pct = Math.min(100, p.porcentajeComprometido);
+
+  const detalle = [
+    p.pagosDeTarjetasCentavos ? { que: 'Tarjetas que vencen', cuanto: p.pagosDeTarjetasCentavos } : null,
+    p.gastoDirectoCentavos ? { que: 'Gastos fijos', cuanto: p.gastoDirectoCentavos } : null,
+  ].filter(Boolean);
+
+  return `
+    <div class="caja mes-proximo">
+      <div class="caja-cabecera">
+        <h2>Cómo viene ${cicloBonito(mesSiguiente(mesDe(hoy)))}</h2>
+        <span class="eyebrow">ya comprometido</span>
+      </div>
+      <div class="caja-cuerpo">
+        <div class="titular">
+          <div class="dato">
+            <span class="eyebrow">Entra</span>
+            <div class="cifra cifra-l">${formatear(p.ingresoCentavos)}</div>
+          </div>
+          <div class="dato">
+            <span class="eyebrow">Ya sale</span>
+            <div class="cifra cifra-l" style="color:var(--aviso)">${formatear(p.comprometidoCentavos)}</div>
+            ${p.ingresoCentavos > 0 ? `<div class="pct gasto">${p.porcentajeComprometido}% del sueldo</div>` : ''}
+          </div>
+        </div>
+        ${p.ingresoCentavos > 0 ? `
+          <div class="barra-gasto"><i class="${p.alcanza ? '' : 'exceso'}" style="width:${pct}%"></i></div>
+          <div class="leyenda">
+            <span>${p.alcanza
+              ? `Te queda libre <b>${formatear(p.quedaCentavos)}</b>`
+              : `<b style="color:var(--critico)">Te faltan ${formatear(-p.quedaCentavos)}</b>`}</span>
+            <span>${p.alcanza ? 'antes de gastar nada' : 'sólo con lo ya comprometido'}</span>
+          </div>` : ''}
+        ${detalle.length ? `<div class="sep"></div>
+          <ul class="lista lista-pelada">${detalle.map((d) => `
+            <li><span class="crece"><span class="titulo">${d.que}</span></span>
+              <span class="monto">${formatear(d.cuanto)}</span></li>`).join('')}
+          </ul>` : ''}
+        ${p.comprometidoCentavos === 0
+          ? '<p class="pista" style="margin-top:12px">Todavía no hay nada comprometido para el mes que viene.</p>' : ''}
+      </div>
+    </div>`;
 }
 
 /* ══════ la cara de la tarjeta, como en la app del banco ══════ */
@@ -1078,9 +1419,103 @@ function pintarTarjetas(panel, hoy) {
     cont.innerHTML = cabecera + `<div class="caja"><div class="vacio">Sin tarjetas.<br>Agregá la primera con su día de cierre y de vencimiento.</div></div>`;
     return;
   }
+
+  /* Todo lo gastado con tarjeta, para el total y para el gráfico. */
+  const conTarjeta = DATOS.gastos.filter((g) => g.tarjetaId);
+  const reparto = porCategoria(conTarjeta, tiposDeCategoria());
+
   cont.innerHTML = cabecera +
+    totalDeTodas(panel) +
+    avisoFechasDelMes(panel, hoy) +
     `<div class="mazo">${panel.resumenes.map((r) => caraTarjeta(r, true)).join('')}</div>` +
+    graficoCategorias(reparto, 'En qué se nos fue la plata', 'de todo lo gastado con tarjeta') +
     `<button class="accion-grande" data-accion="nuevo-gasto">${ICONO_MAS} Nuevo gasto</button>`;
+}
+
+/* ══════ el total de todas las tarjetas juntas ══════ */
+function totalDeTodas(panel) {
+  return `
+    <div class="caja"><div class="caja-cuerpo">
+      <span class="eyebrow">Entre las ${panel.resumenes.length} tarjetas</span>
+      <div class="cifra cifra-hero" style="margin-top:6px">${formatear(panel.deudaTotalCentavos)}</div>
+      <div class="sub" style="margin-top:4px">es todo lo que falta pagar, contando las cuotas que vienen</div>
+      <div class="sep"></div>
+      <div class="rejilla" style="gap:12px">
+        <div class="dato"><span class="eyebrow">Vence este mes</span>
+          <div class="cifra cifra-m">${formatear(panel.aPagarCentavos)}</div></div>
+        ${panel.vencidoCentavos ? `<div class="dato"><span class="eyebrow" style="color:var(--critico)">Vencido e impago</span>
+          <div class="cifra cifra-m neg">${formatear(panel.vencidoCentavos)}</div></div>` : ''}
+        <div class="dato"><span class="eyebrow">Millas</span>
+          <div class="cifra cifra-m">${panel.millasTotales.toLocaleString('es-AR')}</div></div>
+      </div>
+    </div></div>`;
+}
+
+/* ══════ el aviso de completar cierre y vencimiento del mes ══════ */
+function avisoFechasDelMes(panel, hoy) {
+  const faltan = panel.alertas.filter((a) => a.tipo === 'fechas-sin-confirmar');
+  if (!faltan.length) return '';
+  const mes = cicloBonito(mesDe(hoy));
+  return `
+    <div class="caja" style="border-color:var(--aviso-linea);background:var(--aviso-suave)">
+      <div class="caja-cuerpo">
+        <div class="fila-entre" style="align-items:flex-start">
+          <div>
+            <h3 style="font-size:15px;color:var(--aviso)">Faltan las fechas de ${mes}</h3>
+            <p class="pista" style="color:var(--aviso);margin-top:5px">
+              El banco cambia el cierre y el vencimiento todos los meses.
+              Hasta que los cargues se usan los de siempre, y las cuentas pueden
+              salir corridas.
+            </p>
+          </div>
+        </div>
+        <ul class="lista lista-pelada" style="margin-top:10px">
+          ${faltan.map((a) => {
+            const t = DATOS.tarjetas.find((x) => x.nombre === a.tarjeta);
+            return `<li>
+              <span class="crece"><span class="titulo">${escapar(a.tarjeta)}</span></span>
+              ${t ? `<button class="btn chico" data-accion="fechas-mes" data-id="${t.id}">Cargar</button>` : ''}
+            </li>`;
+          }).join('')}
+        </ul>
+      </div>
+    </div>`;
+}
+
+/* ══════ el gráfico de en qué se fue la plata ══════
+   Una barra por categoría, de mayor a menor. Se lee de un vistazo y no
+   necesita ninguna librería. */
+function graficoCategorias(reparto, titulo, bajada) {
+  if (!reparto.categorias.length) return '';
+  const top = reparto.categorias.slice(0, 8);
+  const resto = reparto.categorias.slice(8);
+  const restoTotal = sumar(resto.map((c) => c.montoCentavos));
+  const mayor = top[0].montoCentavos || 1;
+
+  const fila = (c, monto, pct) => `
+    <li class="cat-fila">
+      <div class="cat-alto">
+        <span class="cat-nombre">${escapar(c)}</span>
+        <span class="cat-monto">${formatear(monto)} <span class="cat-pct">${pct}%</span></span>
+      </div>
+      <div class="cat-pista"><i style="width:${Math.max(2, Math.round((monto / mayor) * 100))}%"></i></div>
+    </li>`;
+
+  return `
+    <div class="caja">
+      <div class="caja-cabecera">
+        <div><h2>${titulo}</h2><div class="sub" style="font-size:12px">${bajada}</div></div>
+        <span class="eyebrow">${formatear(reparto.totalCentavos)}</span>
+      </div>
+      <div class="caja-cuerpo">
+        <ul class="lista-pelada">
+          ${top.map((c) => fila(
+            c.categoria + (c.tipo === 'fijo' ? ' · fijo' : ''), c.montoCentavos, c.porcentaje)).join('')}
+          ${resto.length ? fila(`otras ${resto.length}`, restoTotal,
+            Math.round((restoTotal / (reparto.totalCentavos || 1)) * 1000) / 10) : ''}
+        </ul>
+      </div>
+    </div>`;
 }
 
 function detalleTarjeta(r, hoy) {
@@ -1186,6 +1621,183 @@ function barraCiclo(t, hoy) {
     </div>`;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   HISTORIAL — cómo fue cada mes que ya pasó
+   ══════════════════════════════════════════════════════════════ */
+function pintarHistorial(comun, hoy) {
+  const meses = historialMensual(comun);
+  const cerrados = meses.filter((m) => !m.esMesActual);
+
+  const promedio = cerrados.length
+    ? Math.round(sumar(cerrados.map((m) => m.consumoCentavos)) / cerrados.length) : 0;
+  const masCaro = cerrados.slice().sort((a, b) => b.consumoCentavos - a.consumoCentavos)[0];
+
+  const resumen = cerrados.length ? `
+    <div class="caja"><div class="caja-cuerpo"><div class="rejilla">
+      <div class="dato"><span class="eyebrow">Meses registrados</span>
+        <div class="cifra cifra-m">${cerrados.length}</div></div>
+      <div class="dato"><span class="eyebrow">Gasto promedio</span>
+        <div class="cifra cifra-m">${formatear(promedio)}</div>
+        <div class="sub">por mes</div></div>
+      ${masCaro ? `<div class="dato"><span class="eyebrow">El mes más caro</span>
+        <div class="cifra cifra-m">${formatear(masCaro.consumoCentavos)}</div>
+        <div class="sub">${cicloBonito(masCaro.mes)}</div></div>` : ''}
+    </div></div></div>` : '';
+
+  /* La barra de cada mes se dibuja en proporción al mes más caro de todos. */
+  const tope = Math.max(1, ...meses.map((m) => m.consumoCentavos));
+
+  document.getElementById('panel-historial').innerHTML = `
+    <div class="fila-entre">
+      <span class="eyebrow">${meses.length} ${meses.length === 1 ? 'mes' : 'meses'}</span>
+      <span class="eyebrow">del más nuevo al más viejo</span>
+    </div>
+    ${resumen}
+    ${meses.map((m) => {
+      const sobra = m.ingresoCentavos - m.consumoCentavos;
+      const pct = m.ingresoCentavos > 0 ? Math.round((m.consumoCentavos / m.ingresoCentavos) * 100) : 0;
+      const excedido = m.ingresoCentavos > 0 && m.consumoCentavos > m.ingresoCentavos;
+      return `
+      <div class="caja">
+        <div class="caja-cabecera">
+          <h3>${cicloBonito(m.mes)}${m.esMesActual ? ' <span class="pildora ok">en curso</span>' : ''}</h3>
+          <span class="eyebrow">${m.cantidadGastos} ${m.cantidadGastos === 1 ? 'gasto' : 'gastos'}</span>
+        </div>
+        <div class="caja-cuerpo">
+          <div class="rejilla" style="gap:12px">
+            <div class="dato"><span class="eyebrow">Entró</span>
+              <div class="cifra cifra-m">${formatear(m.ingresoCentavos)}</div></div>
+            <div class="dato"><span class="eyebrow">Se gastó</span>
+              <div class="cifra cifra-m" style="color:var(--aviso)">${formatear(m.consumoCentavos)}</div></div>
+            <div class="dato"><span class="eyebrow">${sobra >= 0 ? 'Sobró' : 'Faltó'}</span>
+              <div class="cifra cifra-m ${sobra < 0 ? 'neg' : ''}">${formatear(Math.abs(sobra))}</div></div>
+          </div>
+          <div class="barra-gasto" style="margin:14px 0 7px">
+            <i class="${excedido ? 'exceso' : ''}" style="width:${Math.round((m.consumoCentavos / tope) * 100)}%"></i>
+          </div>
+          <div class="leyenda">
+            <span>${m.ingresoCentavos > 0 ? `Gastaron el <b>${pct}%</b> de lo que entró` : 'Sin sueldo cargado ese mes'}</span>
+            ${m.aportesAhorroCentavos ? `<span>Ahorraron <b>${formatear(m.aportesAhorroCentavos)}</b></span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+    <p class="pista" style="text-align:center">
+      El historial se arma solo con los gastos cargados. No hay que guardar nada a mano.
+    </p>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SUELDO — lo que entra por mes
+   ══════════════════════════════════════════════════════════════ */
+function pintarSueldo(bal, proximo, hoy) {
+  const sueldos = DATOS.config.sueldos || {};
+  const gente = personas();
+  const total = sumar(Object.values(sueldos));
+
+  document.getElementById('panel-sueldo').innerHTML = `
+    <div class="fila-entre">
+      <span class="eyebrow">Lo que entra por mes</span>
+      <button class="btn primario chico" data-accion="editar-sueldos">Editar</button>
+    </div>
+
+    <div class="caja"><div class="caja-cuerpo">
+      <span class="eyebrow">Entre los dos</span>
+      <div class="cifra cifra-hero" style="margin-top:6px">${formatear(total)}</div>
+      ${total === 0 ? '<p class="pista" style="margin-top:10px">Todavía no cargaron el sueldo. Tocá <b>Editar</b>.</p>' : ''}
+    </div></div>
+
+    ${total > 0 ? `<div class="caja">
+      <div class="caja-cabecera"><h3>Quién pone qué</h3></div>
+      <ul class="lista">
+        ${gente.map((p) => {
+          const v = sueldos[p] || 0;
+          const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+          return `<li>
+            <div class="crece">
+              <div class="titulo">${escapar(p)}</div>
+              <div class="progreso" style="margin:7px 0 0"><i style="width:${pct}%"></i></div>
+            </div>
+            <span class="monto">${formatear(v)}<br><span class="sub" style="font-weight:400">${pct}%</span></span>
+          </li>`;
+        }).join('')}
+      </ul>
+    </div>` : ''}
+
+    ${total > 0 ? `<div class="caja">
+      <div class="caja-cabecera"><h3>Contra lo que se gasta</h3></div>
+      <div class="caja-cuerpo">
+        <div class="rejilla" style="gap:12px">
+          <div class="dato"><span class="eyebrow">Este mes</span>
+            <div class="cifra cifra-m">${formatear(bal.consumoCentavos)}</div>
+            <div class="sub">${total > 0 ? Math.round((bal.consumoCentavos / total) * 100) : 0}% del sueldo</div></div>
+          <div class="dato"><span class="eyebrow">${cicloBonito(mesSiguiente(mesDe(hoy)))}</span>
+            <div class="cifra cifra-m">${formatear(proximo.comprometidoCentavos)}</div>
+            <div class="sub">ya comprometido</div></div>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <p class="pista" style="text-align:center">
+      Esta pestaña todavía es la versión simple: el sueldo de cada uno y contra qué se
+      compara. Cuando me cuentes cómo la querés, la armamos bien.
+    </p>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MILLAS
+   ══════════════════════════════════════════════════════════════ */
+function pintarMillas(millas, hoy) {
+  const cont = document.getElementById('panel-millas');
+
+  if (!millas.porTarjeta.length) {
+    cont.innerHTML = `<div class="caja"><div class="vacio">Sin tarjetas cargadas.</div></div>`;
+    return;
+  }
+
+  const mayor = Math.max(1, ...millas.porTarjeta.map((x) => x.millas));
+
+  cont.innerHTML = `
+    <div class="caja"><div class="caja-cuerpo">
+      <span class="eyebrow">Millas juntadas</span>
+      <div class="cifra cifra-hero" style="margin-top:6px">${millas.total.toLocaleString('es-AR')}</div>
+      ${millas.delMes ? `<div class="sub" style="margin-top:4px">${millas.delMes.toLocaleString('es-AR')} en el resumen de este mes</div>` : ''}
+    </div></div>
+
+    ${millas.sinConfigurar.length ? `
+      <div class="alerta aviso"><span class="raya"></span><span>
+        ${millas.sinConfigurar.length === 1 ? 'A esta tarjeta le' : 'A estas tarjetas les'}
+        falta cargar cuántas millas dan por cada $1.000:
+        <b>${millas.sinConfigurar.map(escapar).join(', ')}</b>.
+        Se carga con el lapicito de la tarjeta.
+      </span></div>` : ''}
+
+    <div class="caja">
+      <div class="caja-cabecera"><h3>Cuánto suma cada una</h3></div>
+      <ul class="lista">
+        ${millas.porTarjeta.map((x) => `
+          <li>
+            <div class="crece">
+              <div class="titulo">${escapar(x.tarjeta.nombre)}</div>
+              <div class="meta">
+                ${x.millasPorMil
+                  ? `<span>${x.millasPorMil} millas cada $1.000</span>`
+                  : '<span class="pildora aviso">sin configurar</span>'}
+                <span>${formatear(x.gastadoCentavos)} gastados</span>
+              </div>
+              <div class="progreso" style="margin:8px 0 0"><i style="width:${Math.round((x.millas / mayor) * 100)}%"></i></div>
+            </div>
+            <span class="monto">${x.millas.toLocaleString('es-AR')}</span>
+          </li>`).join('')}
+      </ul>
+    </div>
+
+    <p class="pista" style="text-align:center">
+      Las millas se cuentan sobre todo lo gastado con cada tarjeta, incluidas las
+      cuotas que todavía no vencieron.
+    </p>`;
+}
+
 /* ---------- GASTOS ---------- */
 /* Los filtros de arriba de la lista. Se dibujan solos con lo que hay cargado:
    sólo aparecen los meses, las categorías y las personas que existen de verdad. */
@@ -1207,7 +1819,8 @@ function barraFiltros() {
     <div class="caja filtros">
       <div class="filtros-campos">
         ${select('mes', 'Todos los meses', mesesConGastos(DATOS.gastos).map((m) => ({ v: m, t: cicloBonito(m) })), 'Mes')}
-        ${select('categoria', 'Todas', CATEGORIAS.filter((c) => usadas.has(c)).map((c) => ({ v: c, t: c })), 'Categoría')}
+        ${select('categoria', 'Todas', categorias().filter((c) => usadas.has(c.nombre))
+          .map((c) => ({ v: c.nombre, t: c.nombre })), 'Categoría')}
         ${select('persona', 'Los dos', personas().filter((p) => quienes.has(p)).map((p) => ({ v: p, t: p })), 'Quién')}
       </div>
       ${hayFiltro ? `<button class="btn chico" data-accion="limpiar-filtros" style="margin-top:11px">Ver todos los gastos</button>` : ''}
@@ -1240,28 +1853,54 @@ function pintarGastos(hoy) {
     return;
   }
 
-  document.getElementById('panel-gastos').innerHTML = cabecera + barraFiltros() + `
-    <div class="caja"><ul class="lista">
-      ${orden.map((g) => {
-        const t = porTarjeta[g.tarjetaId];
-        const c = t ? cicloId(cicloDeFecha(g.fecha, t.diaCierre)) : null;
-        const cuotas = (g.cuotas || 1) > 1 ? `<span class="pildora neutro">${g.cuotas} cuotas</span>` : '';
-        return `<li>
-          <div class="crece">
-            <div class="titulo">${escapar(g.descripcion)} ${cuotas}</div>
-            <div class="meta">
-              <span class="mono">${fechaCorta(g.fecha)}</span>
-              <span>${t ? escapar(t.nombre) : 'Efectivo / débito'}</span>
-              ${g.categoria ? `<span class="cat">${escapar(g.categoria)}</span>` : ''}
-              ${g.persona ? `<span>${escapar(g.persona)}</span>` : ''}
-              ${c ? `<span class="pildora ok">resumen ${cicloBonito(c)}</span>` : ''}
+  /* Separados en dos grupos: lo que se repite todos los meses y lo que no. */
+  const { fijos, variables, fijosCentavos, variablesCentavos } = fijosYVariables(orden);
+
+  const grupo = (titulo, bajada, lista, monto) => !lista.length ? '' : `
+    <div class="caja">
+      <div class="caja-cabecera">
+        <div><h3>${titulo}</h3><div class="sub" style="font-size:12px">${bajada}</div></div>
+        <span class="monto">${formatear(monto)}</span>
+      </div>
+      <ul class="lista">
+        ${lista.map((g) => {
+          const t = porTarjeta[g.tarjetaId];
+          const c = t ? cicloId(cicloDeFechaEnTarjeta(g.fecha, t)) : null;
+          const forma = g.tipoPago === 'fijo' ? '<span class="pildora ok">todos los meses</span>'
+            : (g.cuotas || 1) > 1 ? `<span class="pildora neutro">${g.cuotas} cuotas</span>` : '';
+          return `<li>
+            <div class="crece">
+              <div class="titulo">${escapar(g.descripcion)} ${forma}</div>
+              <div class="meta">
+                <span class="mono">${g.tipoPago === 'fijo' ? 'desde ' + fechaCorta(g.fecha) : fechaCorta(g.fecha)}</span>
+                <span>${t ? escapar(t.nombre) : 'Efectivo / débito'}</span>
+                ${g.categoria ? `<span class="cat">${escapar(g.categoria)}</span>` : ''}
+                ${g.persona ? `<span>${escapar(g.persona)}</span>` : ''}
+                ${c && g.tipoPago !== 'fijo' ? `<span class="pildora ok">resumen ${cicloBonito(c)}</span>` : ''}
+              </div>
             </div>
-          </div>
-          <span class="monto">${formatear(g.montoCentavos)}</span>
-          <button class="btn icono" data-accion="editar-gasto" data-id="${g.id}" aria-label="Editar ${escapar(g.descripcion)}">${ICONO_EDITAR}</button>
-        </li>`;
-      }).join('')}
-    </ul></div>`;
+            <span class="monto">${formatear(g.montoCentavos)}</span>
+            <button class="btn icono" data-accion="editar-gasto" data-id="${g.id}" aria-label="Editar ${escapar(g.descripcion)}">${ICONO_EDITAR}</button>
+          </li>`;
+        }).join('')}
+      </ul>
+    </div>`;
+
+  const reparto = porCategoria(orden, tiposDeCategoria());
+
+  document.getElementById('panel-gastos').innerHTML = cabecera + barraFiltros()
+    + (fijos.length && variables.length ? `
+      <div class="caja"><div class="caja-cuerpo"><div class="rejilla" style="gap:12px">
+        <div class="dato"><span class="eyebrow">Gastos fijos</span>
+          <div class="cifra cifra-m">${formatear(fijosCentavos)}</div>
+          <div class="sub">${Math.round((fijosCentavos / (total || 1)) * 100)}% del total</div></div>
+        <div class="dato"><span class="eyebrow">Gastos variables</span>
+          <div class="cifra cifra-m">${formatear(variablesCentavos)}</div>
+          <div class="sub">${Math.round((variablesCentavos / (total || 1)) * 100)}% del total</div></div>
+      </div></div></div>` : '')
+    + grupo('Gastos fijos', 'todos los meses lo mismo', fijos, fijosCentavos)
+    + grupo('Gastos variables', 'cambian según el mes', variables, variablesCentavos)
+    + graficoCategorias(reparto, 'En qué se fue', 'de los gastos que estás viendo');
 }
 
 /* ---------- AHORROS ---------- */
@@ -1348,9 +1987,8 @@ function pintarAhorros(ahorros, hoy) {
 
 const $ = (s) => document.querySelector(s);
 const personas = () => DATOS.config.personas || ['Felipe', 'Martu'];
-let editando = { tarjeta: null, gasto: null, meta: null, aporteMeta: null, aporte: null };
+let editando = { tarjeta: null, gasto: null, meta: null, aporteMeta: null, aporte: null, fechasTarjeta: null, fechasCiclo: null };
 
-const CATEGORIAS = ['Comida', 'Pedidos', 'Supermercado', 'Viáticos', 'Salidas', 'Servicios', 'Salud', 'Ropa', 'Hogar', 'Otros'];
 
 /* ---------- las 4 tarjetas, en orden. Ids fijos: sembrar dos veces no duplica ---------- */
 const SEMILLA = [
@@ -1454,14 +2092,30 @@ $('#borrar-tarjeta').addEventListener('click', () => {
 });
 
 /* ---------- gastos ---------- */
+const tipoPagoElegido = () => {
+  const r = $('#form-gasto').querySelector('input[name="tipoPago"]:checked');
+  return r ? r.value : 'unico';
+};
+
 function pistaCiclo() {
   const f = $('#form-gasto');
   const t = DATOS.tarjetas.find((x) => x.id === f.tarjetaId.value);
   const el = $('#pista-ciclo');
+  const tipo = tipoPagoElegido();
+
+  /* El "cuántas cuotas" sólo tiene sentido si elegiste cuotas. */
+  $('#campo-cuotas').hidden = tipo !== 'cuotas';
+
+  if (tipo === 'fijo') {
+    el.innerHTML = t
+      ? `Se va a cobrar <b>todos los meses</b> en el resumen de <b>${escapar(t.nombre)}</b>, desde ${f.fecha.value ? fechaLarga(f.fecha.value) : 'la fecha que pongas'}.`
+      : 'Va a pesar <b>todos los meses</b> desde la fecha que pongas. Ideal para el alquiler, la psicóloga o una suscripción.';
+    return;
+  }
   if (!t || !f.fecha.value) { el.textContent = 'Sin tarjeta, el gasto pesa en el mes en que lo hacés.'; return; }
-  const c = cicloDeFecha(f.fecha.value, t.diaCierre);
-  const venc = vencimientoDeCiclo(c, t.diaCierre, t.diaVencimiento);
-  const n = Math.max(1, +f.cuotas.value || 1);
+  const c = cicloDeFechaEnTarjeta(f.fecha.value, t);
+  const venc = vencimientoDeTarjeta(t, c);
+  const n = tipo === 'cuotas' ? Math.max(1, +f.cuotas.value || 1) : 1;
   el.innerHTML = n > 1
     ? `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b> — primera cuota el <b>${fechaLarga(venc)}</b>, y las otras ${n - 1} en los resúmenes siguientes.`
     : `Cae en el resumen de <b>${cicloBonito(cicloId(c))}</b>, que se paga el <b>${fechaLarga(venc)}</b>.`;
@@ -1478,16 +2132,31 @@ function abrirGasto(id, tarjetaPreferida) {
   opciones(f.tarjetaId, [{ v: '', t: 'Efectivo / débito' }, ...orden.map((t) => ({ v: t.id, t: t.nombre }))], elegida);
   opciones(f.cuotas, [1, 2, 3, 6, 9, 12, 18, 24].map((n) => ({ v: n, t: n === 1 ? 'Un pago' : n + ' cuotas' })), g ? g.cuotas || 1 : 1);
   opciones(f.persona, personas().map((p) => ({ v: p, t: p })), g ? g.persona : personas()[0]);
-  opciones(f.categoria, CATEGORIAS.map((c) => ({ v: c, t: c })), g ? g.categoria : CATEGORIAS[0]);
+  const cats = categorias();
+  opciones(f.categoria, [
+    ...cats.map((c) => ({ v: c.nombre, t: c.tipo === 'fijo' ? c.nombre + '  · fijo' : c.nombre })),
+    { v: '__nueva__', t: '➕  Agregar una categoría nueva…' },
+  ], g ? g.categoria : (cats[0] ? cats[0].nombre : ''));
   f.descripcion.value = g ? g.descripcion : '';
   f.monto.value = g ? g.montoCentavos / 100 : '';
   f.fecha.value = g ? g.fecha : hoyISO();
+
+  /* Cómo se paga: fijo, en cuotas o de una. */
+  const tipo = g ? (g.tipoPago || ((g.cuotas || 1) > 1 ? 'cuotas' : 'unico')) : 'unico';
+  f.querySelectorAll('input[name="tipoPago"]').forEach((r) => { r.checked = r.value === tipo; });
   pistaCiclo();
   $('#dlg-gasto').showModal();
   if (!g) setTimeout(() => f.descripcion.focus(), 60);
 }
 ['change', 'input'].forEach((ev) => $('#form-gasto').addEventListener(ev, (e) => {
-  if (['tarjetaId', 'fecha', 'cuotas'].includes(e.target.name)) pistaCiclo();
+  if (e.target.name === 'categoria' && e.target.value === '__nueva__') { abrirCategoria(); return; }
+  /* Si elegís una categoría fija (alquiler, psicóloga...), se marca sola la
+     forma de pago "gasto fijo". Si querés otra cosa, la cambiás y listo. */
+  if (e.target.name === 'categoria' && esCategoriaFija(e.target.value) && tipoPagoElegido() === 'unico') {
+    const r = $('#form-gasto').querySelector('input[name="tipoPago"][value="fijo"]');
+    if (r) r.checked = true;
+  }
+  if (['tarjetaId', 'fecha', 'cuotas', 'tipoPago', 'categoria'].includes(e.target.name)) pistaCiclo();
 }));
 $('#form-gasto').addEventListener('submit', (e) => {
   const f = e.target;
@@ -1496,7 +2165,8 @@ $('#form-gasto').addEventListener('submit', (e) => {
     montoCentavos: aCentavos(f.monto.value || 0),
     fecha: f.fecha.value,
     tarjetaId: f.tarjetaId.value || null,
-    cuotas: Math.max(1, +f.cuotas.value || 1),
+    tipoPago: tipoPagoElegido(),
+    cuotas: tipoPagoElegido() === 'cuotas' ? Math.max(1, +f.cuotas.value || 1) : 1,
     persona: f.persona.value,
     categoria: f.categoria.value,
   });
@@ -1569,6 +2239,100 @@ $('#borrar-aporte').addEventListener('click', () => {
   $('#dlg-aporte').close();
 });
 
+/* ---------- categorías ---------- */
+function abrirCategoria() {
+  const f = $('#form-categoria');
+  f.nombre.value = '';
+  f.querySelectorAll('input[name="tipo"]').forEach((r) => { r.checked = r.value === 'variable'; });
+  $('#dlg-categoria').showModal();
+  setTimeout(() => f.nombre.focus(), 60);
+}
+$('#form-categoria').addEventListener('submit', (e) => {
+  const f = e.target;
+  const nombre = f.nombre.value.trim();
+  if (!nombre) return;
+  const tipo = f.querySelector('input[name="tipo"]:checked').value;
+  const actuales = categorias();
+  const yaEsta = actuales.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
+  if (!yaEsta) guardarConfig({ categorias: [...actuales, { nombre, tipo }] });
+  /* La dejamos elegida en el formulario de gasto, que es de donde se abrió. */
+  const g = $('#form-gasto');
+  if (g && $('#dlg-gasto').open) {
+    const cats = yaEsta ? actuales : [...actuales, { nombre, tipo }];
+    opciones(g.categoria, [
+      ...cats.map((c) => ({ v: c.nombre, t: c.tipo === 'fijo' ? c.nombre + '  · fijo' : c.nombre })),
+      { v: '__nueva__', t: '➕  Agregar una categoría nueva…' },
+    ], yaEsta ? yaEsta.nombre : nombre);
+  }
+});
+/* Si cancelás la categoría nueva, el desplegable no puede quedar en "Agregar…" */
+$('#dlg-categoria').addEventListener('close', () => {
+  const g = $('#form-gasto');
+  if (g && g.categoria.value === '__nueva__') {
+    const cats = categorias();
+    g.categoria.value = cats[0] ? cats[0].nombre : '';
+  }
+});
+
+/* ---------- el cierre y el vencimiento de ESTE mes ---------- */
+function abrirFechas(tarjetaId, cicloTexto) {
+  const t = DATOS.tarjetas.find((x) => x.id === tarjetaId);
+  if (!t) return;
+  const hoy = hoyISO();
+  const ciclo = cicloTexto || cicloId(cicloDeFechaEnTarjeta(hoy, t));
+  const actual = diasDelCiclo(t, { y: +ciclo.slice(0, 4), m: +ciclo.slice(5, 7) });
+  editando.fechasTarjeta = t.id;
+  editando.fechasCiclo = ciclo;
+  $('#titulo-fechas').textContent = `${t.nombre} · ${cicloBonito(ciclo)}`;
+  $('#fechas-bajada').innerHTML = `¿Qué día cerró y qué día vence el resumen de <b>${cicloBonito(ciclo)}</b>? `
+    + `Mirá el resumen del banco: cambia todos los meses.`;
+  const f = $('#form-fechas');
+  f.diaCierre.value = actual.diaCierre;
+  f.diaVencimiento.value = actual.diaVencimiento;
+  $('#borrar-fechas').hidden = !actual.confirmado;
+  pistaFechas();
+  $('#dlg-fechas').showModal();
+}
+function pistaFechas() {
+  const f = $('#form-fechas');
+  const ciclo = editando.fechasCiclo;
+  if (!ciclo) return;
+  const c = { y: +ciclo.slice(0, 4), m: +ciclo.slice(5, 7) };
+  const cierreDia = Math.min(31, Math.max(1, +f.diaCierre.value || 1));
+  const vencDia = Math.min(31, Math.max(1, +f.diaVencimiento.value || 1));
+  const cierre = cierreDeCiclo(c, cierreDia);
+  const venc = vencimientoDeCiclo(c, cierreDia, vencDia);
+  $('#fechas-pista').innerHTML = `Lo que compres hasta el <b>${fechaLarga(cierre)}</b> entra en este resumen, `
+    + `y se paga el <b>${fechaLarga(venc)}</b>.`;
+}
+['change', 'input'].forEach((ev) => $('#form-fechas').addEventListener(ev, pistaFechas));
+$('#form-fechas').addEventListener('submit', (e) => {
+  const f = e.target;
+  const t = DATOS.tarjetas.find((x) => x.id === editando.fechasTarjeta);
+  if (!t) return;
+  const ciclos = { ...(t.ciclos || {}) };
+  ciclos[editando.fechasCiclo] = {
+    diaCierre: Math.min(31, Math.max(1, +f.diaCierre.value)),
+    diaVencimiento: Math.min(31, Math.max(1, +f.diaVencimiento.value)),
+    confirmado: true,
+  };
+  guardarTarjeta(t, { ciclos });
+});
+$('#borrar-fechas').addEventListener('click', () => {
+  const t = DATOS.tarjetas.find((x) => x.id === editando.fechasTarjeta);
+  if (!t) return;
+  const ciclos = { ...(t.ciclos || {}) };
+  delete ciclos[editando.fechasCiclo];
+  guardarTarjeta(t, { ciclos });
+  $('#dlg-fechas').close();
+});
+
+/* Guarda una tarjeta cambiándole sólo algunos campos. */
+function guardarTarjeta(t, cambios) {
+  const { id, ...resto } = t;
+  guardar('tarjetas', id, { ...resto, ...cambios });
+}
+
 /* ---------- acciones ---------- */
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-accion]');
@@ -1594,6 +2358,8 @@ document.addEventListener('click', (e) => {
     render();
   }
   else if (accion === 'pagar') alternarPago(clave);
+  else if (accion === 'fechas-mes') abrirFechas(id, b.dataset.ciclo);
+  else if (accion === 'nueva-categoria') abrirCategoria();
 });
 
 /* Los filtros: al cambiar uno, se vuelve a dibujar la lista. Como al dibujar

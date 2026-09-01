@@ -18,6 +18,9 @@ import {
   resumenDeTarjeta, panelTarjetas,
   mesesHasta, progresoDeMeta, panelAhorros,
   mesDe, balanceMensual, filtrarGastos, mesesConGastos,
+  diasDelCiclo, cicloDeFechaEnTarjeta, cierreDeTarjeta, vencimientoDeTarjeta,
+  mesSiguiente, HORIZONTE_FIJOS, gastoPesaEnMes, comoVieneElMes,
+  porCategoria, fijosYVariables, panelMillas, historialMensual,
 } from './motor.js';
 
 /* Tarjeta de mentira para las pruebas: cierra el 25, vence el 10. */
@@ -628,7 +631,333 @@ describe('Filtrar la lista de gastos', () => {
 });
 
 /* ────────────────────────────────────────────────────────────
-   13. CÓMO SE MUESTRA LA PLATA
+   13. EL CIERRE Y EL VENCIMIENTO CAMBIAN TODOS LOS MESES
+   ──────────────────────────────────────────────────────────── */
+describe('El cierre y el vencimiento cambian mes a mes', () => {
+  /* Tarjeta que "de siempre" cierra el 25 y vence el 10, pero en septiembre
+     el banco corrió el cierre al 27 y el vencimiento al 12. */
+  const CONFECHAS = {
+    ...TARJETA,
+    ciclos: { '2026-09': { diaCierre: 27, diaVencimiento: 12, confirmado: true } },
+  };
+
+  test('un mes cargado usa SUS días, no los de siempre', () => {
+    assert.deepEqual(diasDelCiclo(CONFECHAS, { y: 2026, m: 9 }),
+      { diaCierre: 27, diaVencimiento: 12, confirmado: true });
+  });
+
+  test('un mes sin cargar cae en los días de siempre, y queda sin confirmar', () => {
+    assert.deepEqual(diasDelCiclo(CONFECHAS, { y: 2026, m: 10 }),
+      { diaCierre: 25, diaVencimiento: 10, confirmado: false });
+  });
+
+  test('una tarjeta sin ningún mes cargado sigue funcionando como antes', () => {
+    assert.deepEqual(diasDelCiclo(TARJETA, { y: 2026, m: 9 }),
+      { diaCierre: 25, diaVencimiento: 10, confirmado: false });
+  });
+
+  test('LO IMPORTANTE: el gasto cae en otro resumen según el cierre real del mes', () => {
+    // El 26 de septiembre, con el cierre de siempre (25), caería en OCTUBRE.
+    assert.deepEqual(cicloDeFecha('2026-09-26', 25), { y: 2026, m: 10 });
+    // Pero en septiembre el banco cerró el 27, así que cae en SEPTIEMBRE.
+    assert.deepEqual(cicloDeFechaEnTarjeta('2026-09-26', CONFECHAS), { y: 2026, m: 9 });
+  });
+
+  test('el cierre y el vencimiento del mes cargado salen con sus días reales', () => {
+    assert.equal(cierreDeTarjeta(CONFECHAS, { y: 2026, m: 9 }), '2026-09-27');
+    assert.equal(vencimientoDeTarjeta(CONFECHAS, { y: 2026, m: 9 }), '2026-10-12');
+  });
+
+  test('los meses no cargados siguen con los días de siempre', () => {
+    assert.equal(cierreDeTarjeta(CONFECHAS, { y: 2026, m: 10 }), '2026-10-25');
+    assert.equal(vencimientoDeTarjeta(CONFECHAS, { y: 2026, m: 10 }), '2026-11-10');
+  });
+
+  test('el resumen de la tarjeta respeta las fechas cargadas', () => {
+    const g = gasto({ id: 'a', fecha: '2026-09-26', montoCentavos: 50000 });
+    const r = resumenDeTarjeta(CONFECHAS, [g], '2026-09-20');
+    assert.equal(r.ciclos.find((c) => c.cicloId === '2026-09').totalCentavos, 50000);
+    assert.equal(r.ciclos.find((c) => c.cicloId === '2026-09').vencimiento, '2026-10-12');
+  });
+
+  test('AVISA cuando falta confirmar las fechas de este mes', () => {
+    const r = resumenDeTarjeta(TARJETA, [], '2026-09-10');
+    assert.ok(r.alertas.some((a) => a.tipo === 'fechas-sin-confirmar'),
+      'tiene que pedir que se completen el cierre y el vencimiento del mes');
+  });
+
+  test('NO avisa si las fechas de este mes ya están confirmadas', () => {
+    const r = resumenDeTarjeta(CONFECHAS, [], '2026-09-10');
+    assert.ok(!r.alertas.some((a) => a.tipo === 'fechas-sin-confirmar'));
+  });
+
+  test('vuelve a avisar el mes siguiente, porque hay que cargarlo de nuevo', () => {
+    const r = resumenDeTarjeta(CONFECHAS, [], '2026-10-10');
+    assert.ok(r.alertas.some((a) => a.tipo === 'fechas-sin-confirmar'));
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   14. GASTOS FIJOS
+   ──────────────────────────────────────────────────────────── */
+describe('Gastos fijos: se repiten todos los meses', () => {
+  test('un gasto fijo con tarjeta cae en TODOS los resúmenes, con el monto entero', () => {
+    const g = gasto({ tipoPago: 'fijo', montoCentavos: 50000, fecha: '2026-03-10' });
+    const c = cuotasDeGasto(g, TARJETA, { y: 2026, m: 6 });
+    assert.deepEqual(c.map((x) => x.cicloId), ['2026-03', '2026-04', '2026-05', '2026-06']);
+    assert.deepEqual(c.map((x) => x.montoCentavos), [50000, 50000, 50000, 50000]);
+  });
+
+  test('el fijo NO se reparte: cada mes se paga el monto completo', () => {
+    const g = gasto({ tipoPago: 'fijo', montoCentavos: 90000 });
+    const cuotas = cuotasDeGasto(g, TARJETA, { y: 2026, m: 5 });
+    const enCuotas = cuotasDeGasto(gasto({ cuotas: 3, montoCentavos: 90000 }), TARJETA);
+    assert.equal(cuotas[0].montoCentavos, 90000, 'el fijo va entero');
+    assert.equal(enCuotas[0].montoCentavos, 30000, 'la cuota va partida');
+  });
+
+  test('queda marcado como fijo, para poder mostrarlo distinto', () => {
+    const c = cuotasDeGasto(gasto({ tipoPago: 'fijo' }), TARJETA, { y: 2026, m: 4 });
+    assert.ok(c.every((x) => x.fijo === true));
+    assert.ok(cuotasDeGasto(gasto({ cuotas: 2 }), TARJETA).every((x) => x.fijo === false));
+  });
+
+  test('sin decirle hasta cuándo, proyecta un año', () => {
+    const c = cuotasDeGasto(gasto({ tipoPago: 'fijo' }), TARJETA);
+    assert.equal(c.length, HORIZONTE_FIJOS + 1);
+  });
+
+  test('un gasto fijo SIN tarjeta (alquiler) pesa todos los meses desde que arranca', () => {
+    const alquiler = { tipoPago: 'fijo', fecha: '2026-03-01' };
+    assert.equal(gastoPesaEnMes(alquiler, '2026-02'), false, 'antes de arrancar, no');
+    assert.equal(gastoPesaEnMes(alquiler, '2026-03'), true);
+    assert.equal(gastoPesaEnMes(alquiler, '2026-09'), true, 'seis meses después, sigue');
+  });
+
+  test('un gasto común pesa sólo en su mes', () => {
+    const compra = { fecha: '2026-03-01' };
+    assert.equal(gastoPesaEnMes(compra, '2026-03'), true);
+    assert.equal(gastoPesaEnMes(compra, '2026-04'), false);
+  });
+
+  test('el alquiler aparece en el balance de todos los meses siguientes', () => {
+    const alquiler = { id: 'alq', descripcion: 'Alquiler', montoCentavos: 40000000,
+      fecha: '2026-03-01', tarjetaId: null, tipoPago: 'fijo', categoria: 'Alquiler' };
+    const base = { sueldos: { Martu: 100000000 }, gastos: [alquiler], tarjetas: [], aportes: [], hoy: '2026-06-15', pagados: [] };
+    assert.equal(balanceMensual({ ...base, mes: '2026-06' }).gastoDirectoCentavos, 40000000);
+    assert.equal(balanceMensual({ ...base, mes: '2026-02' }).gastoDirectoCentavos, 0);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   15. CÓMO VIENE EL MES QUE VIENE
+   ──────────────────────────────────────────────────────────── */
+describe('Cómo viene el mes que viene', () => {
+  const base = {
+    sueldos: { Martu: 80000000, Felipe: 70000000 },
+    tarjetas: [TARJETA], aportes: [], hoy: '2026-09-15', pagados: [],
+  };
+
+  test('el mes siguiente se calcula bien, incluso cruzando el año', () => {
+    assert.equal(mesSiguiente('2026-09'), '2026-10');
+    assert.equal(mesSiguiente('2026-12'), '2027-01');
+    assert.equal(mesSiguiente('2026-09', 3), '2026-12');
+  });
+
+  test('junta lo que YA está comprometido para ese mes', () => {
+    // Un gasto de septiembre en la tarjeta se paga el 10 de octubre.
+    const g = gasto({ id: 'a', fecha: '2026-09-05', montoCentavos: 30000000 });
+    const v = comoVieneElMes({ ...base, gastos: [g], mes: '2026-10' });
+    assert.equal(v.pagosDeTarjetasCentavos, 30000000);
+    assert.equal(v.comprometidoCentavos, 30000000);
+  });
+
+  test('dice cuánto queda y qué porcentaje del sueldo ya está comprometido', () => {
+    const g = gasto({ id: 'a', fecha: '2026-09-05', montoCentavos: 30000000 });
+    const v = comoVieneElMes({ ...base, gastos: [g], mes: '2026-10' });
+    assert.equal(v.quedaCentavos, 150000000 - 30000000);
+    assert.equal(v.porcentajeComprometido, 20);
+    assert.equal(v.alcanza, true);
+  });
+
+  test('avisa cuando lo comprometido se pasa del sueldo', () => {
+    const g = gasto({ id: 'a', fecha: '2026-09-05', montoCentavos: 200000000 });
+    const v = comoVieneElMes({ ...base, gastos: [g], mes: '2026-10' });
+    assert.equal(v.alcanza, false);
+    assert.ok(v.quedaCentavos < 0);
+  });
+
+  test('un mes sin nada comprometido queda con el sueldo entero', () => {
+    const v = comoVieneElMes({ ...base, gastos: [], mes: '2026-10' });
+    assert.equal(v.comprometidoCentavos, 0);
+    assert.equal(v.quedaCentavos, 150000000);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   16. EN QUÉ SE NOS FUE LA PLATA
+   ──────────────────────────────────────────────────────────── */
+describe('En qué se nos fue la plata', () => {
+  const gastos = [
+    gasto({ id: 'a', categoria: 'Comida', montoCentavos: 50000 }),
+    gasto({ id: 'b', categoria: 'Comida', montoCentavos: 30000 }),
+    gasto({ id: 'c', categoria: 'Alquiler', montoCentavos: 100000, tipoPago: 'fijo' }),
+    gasto({ id: 'd', categoria: 'Ropa', montoCentavos: 20000 }),
+  ];
+  const TIPOS = { Alquiler: 'fijo', Comida: 'variable', Ropa: 'variable' };
+
+  test('agrupa por categoría y ordena de mayor a menor', () => {
+    const r = porCategoria(gastos, TIPOS);
+    assert.deepEqual(r.categorias.map((c) => c.categoria), ['Alquiler', 'Comida', 'Ropa']);
+    assert.deepEqual(r.categorias.map((c) => c.montoCentavos), [100000, 80000, 20000]);
+  });
+
+  test('calcula el porcentaje de cada una', () => {
+    const r = porCategoria(gastos, TIPOS);
+    assert.equal(r.totalCentavos, 200000);
+    assert.equal(r.categorias[0].porcentaje, 50);
+    assert.equal(r.categorias[1].porcentaje, 40);
+    assert.equal(r.categorias[2].porcentaje, 10);
+  });
+
+  test('los porcentajes suman 100', () => {
+    const r = porCategoria(gastos, TIPOS);
+    assert.equal(Math.round(sumar(r.categorias.map((c) => c.porcentaje))), 100);
+  });
+
+  test('sabe cuáles categorías son fijas', () => {
+    const r = porCategoria(gastos, TIPOS);
+    assert.equal(r.categorias.find((c) => c.categoria === 'Alquiler').tipo, 'fijo');
+    assert.equal(r.categorias.find((c) => c.categoria === 'Comida').tipo, 'variable');
+  });
+
+  test('un gasto sin categoría no se pierde', () => {
+    const r = porCategoria([gasto({ id: 'x', categoria: null, montoCentavos: 1000 })], {});
+    assert.equal(r.categorias[0].categoria, 'Sin categoría');
+  });
+
+  test('sin gastos no explota', () => {
+    const r = porCategoria([], {});
+    assert.deepEqual(r.categorias, []);
+    assert.equal(r.totalCentavos, 0);
+  });
+
+  test('separa fijos de variables y suma cada grupo', () => {
+    const r = fijosYVariables(gastos);
+    assert.deepEqual(r.fijos.map((g) => g.id), ['c']);
+    assert.deepEqual(r.variables.map((g) => g.id), ['a', 'b', 'd']);
+    assert.equal(r.fijosCentavos, 100000);
+    assert.equal(r.variablesCentavos, 100000);
+  });
+
+  test('"fijo" significa UNA sola cosa: que se repite todos los meses', () => {
+    // Un gasto suelto en una categoría fija NO es un gasto fijo: pasó una vez.
+    // Si se agrupara como fijo, se vería en ese grupo pero no se repetiría, y
+    // la pantalla estaría diciendo dos cosas distintas con la misma palabra.
+    const unaVez = [gasto({ id: 'z', categoria: 'Alquiler', montoCentavos: 5000 })];
+    assert.equal(fijosYVariables(unaVez).fijosCentavos, 0);
+    assert.equal(fijosYVariables(unaVez).variablesCentavos, 5000);
+    assert.equal(gastoPesaEnMes(unaVez[0], '2026-04'), false, 'y tampoco se repite');
+  });
+
+  test('lo que se agrupa como fijo es exactamente lo que se repite', () => {
+    const r = fijosYVariables(gastos);
+    for (const g of r.fijos) assert.equal(gastoPesaEnMes(g, '2026-12'), true);
+    for (const g of r.variables) assert.equal(gastoPesaEnMes(g, '2026-12'), false);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   17. MILLAS
+   ──────────────────────────────────────────────────────────── */
+describe('El panel de millas', () => {
+  const T2 = { ...TARJETA, id: 't2', nombre: 'GALICIA GOLD AMEX', millasPorMil: 0 };
+  const gastos = [
+    gasto({ id: 'a', tarjetaId: 't1', montoCentavos: 10000000 }),   // $100.000
+    gasto({ id: 'b', tarjetaId: 't2', montoCentavos: 10000000 }),
+  ];
+
+  test('cuenta las millas de cada tarjeta', () => {
+    const m = panelMillas([TARJETA, T2], gastos, '2026-03-20');
+    assert.equal(m.porTarjeta[0].millas, 150);      // 1,5 millas cada $1.000
+    assert.equal(m.porTarjeta[1].millas, 0);
+  });
+
+  test('suma el total entre todas', () => {
+    assert.equal(panelMillas([TARJETA, T2], gastos, '2026-03-20').total, 150);
+  });
+
+  test('avisa qué tarjetas no tienen las millas cargadas', () => {
+    const m = panelMillas([TARJETA, T2], gastos, '2026-03-20');
+    assert.deepEqual(m.sinConfigurar, ['GALICIA GOLD AMEX']);
+  });
+
+  test('sin tarjetas no explota', () => {
+    const m = panelMillas([], [], '2026-03-20');
+    assert.equal(m.total, 0);
+    assert.deepEqual(m.porTarjeta, []);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   18. HISTORIAL
+   ──────────────────────────────────────────────────────────── */
+describe('El historial mes a mes', () => {
+  const base = {
+    sueldos: { Martu: 100000000 }, tarjetas: [TARJETA], aportes: [], pagados: [],
+    hoy: '2026-09-15',
+  };
+  const gastos = [
+    gasto({ id: 'a', fecha: '2026-07-05', montoCentavos: 10000000 }),
+    gasto({ id: 'b', fecha: '2026-08-05', montoCentavos: 20000000 }),
+    gasto({ id: 'c', fecha: '2026-09-05', montoCentavos: 30000000 }),
+  ];
+
+  test('trae un mes por cada mes con movimiento, hasta hoy', () => {
+    const h = historialMensual({ ...base, gastos });
+    assert.deepEqual(h.map((m) => m.mes), ['2026-09', '2026-08', '2026-07']);
+  });
+
+  test('viene del más nuevo al más viejo', () => {
+    const meses = historialMensual({ ...base, gastos }).map((m) => m.mes);
+    assert.deepEqual(meses, [...meses].sort().reverse());
+  });
+
+  test('marca cuál es el mes en curso', () => {
+    const h = historialMensual({ ...base, gastos });
+    assert.equal(h[0].esMesActual, true);
+    assert.equal(h[1].esMesActual, false);
+  });
+
+  test('cada mes trae lo que se gastó y cuántos gastos fueron', () => {
+    const h = historialMensual({ ...base, gastos });
+    const julio = h.find((m) => m.mes === '2026-07');
+    assert.equal(julio.consumoCentavos, 10000000);
+    assert.equal(julio.cantidadGastos, 1);
+  });
+
+  test('no se saltea meses sin movimiento en el medio', () => {
+    const salteados = [
+      gasto({ id: 'a', fecha: '2026-06-05' }),
+      gasto({ id: 'c', fecha: '2026-09-05' }),
+    ];
+    const h = historialMensual({ ...base, gastos: salteados });
+    assert.deepEqual(h.map((m) => m.mes), ['2026-09', '2026-08', '2026-07', '2026-06']);
+  });
+
+  test('sin nada cargado, muestra al menos el mes actual', () => {
+    const h = historialMensual({ ...base, gastos: [] });
+    assert.deepEqual(h.map((m) => m.mes), ['2026-09']);
+  });
+
+  test('se le puede pedir desde qué mes arrancar', () => {
+    const h = historialMensual({ ...base, gastos, desde: '2026-08' });
+    assert.deepEqual(h.map((m) => m.mes), ['2026-09', '2026-08']);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+   19. CÓMO SE MUESTRA LA PLATA
    ──────────────────────────────────────────────────────────── */
 describe('Cómo se muestra la plata en pantalla', () => {
   test('muestra pesos sin centavos y con separador de miles', () => {

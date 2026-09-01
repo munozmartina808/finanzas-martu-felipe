@@ -14,10 +14,13 @@ computadora, y los dos vemos lo mismo al mismo tiempo.
 
 | Pestaña | Para qué sirve |
 |---|---|
-| **Inicio** | Cuánto entró y cuánto se gastó este mes, con la barra de cuánto queda. Los avisos importantes: qué vence, qué está por cerrar. |
-| **Tarjetas** | Las 4 tarjetas. Se toca una y se ve su resumen: cuándo cierra, cuándo vence, cuánto hay que pagar y en qué se gastó. |
-| **Gastos** | Cargar un gasto. Mientras se carga, la app avisa en qué resumen va a caer y cuándo se paga. |
+| **Inicio** | Cuánto entró y cuánto se gastó este mes, y **cómo viene el mes que viene**: lo que ya está comprometido y cuánto queda libre. |
+| **Tarjetas** | El total de las 4 juntas, en qué se fue más la plata, y cada tarjeta con su resumen. Todos los meses pide cargar el cierre y el vencimiento nuevos. |
+| **Gastos** | Cargar un gasto eligiendo si es un solo pago, en cuotas o **fijo** (se repite todos los meses). La lista se separa en fijos y variables. |
 | **Ahorros** | Las metas ("Vacaciones", "Auto") con lo que puso cada uno y cuánto falta. |
+| **Historial** | Cómo fue cada mes que pasó: entró, se gastó, sobró. Se arma solo. |
+| **Sueldo** | Lo que entra por mes y cuánto pone cada uno. |
+| **Millas** | Cuántas millas juntaron y con qué tarjeta. |
 
 ## Lo que más se usa
 
@@ -60,10 +63,10 @@ armado, qué no hay que romper y qué falta hacer.
 cd motor && node --test
 ```
 
-Tienen que dar **105 en verde**. Y las que manejan la app de verdad:
+Tienen que dar **147 en verde**. Y las que manejan la app de verdad:
 
 ```bash
 cd pruebas && npm install && npm test
 ```
 
-Tienen que dar **33 en verde**. Si algo está en rojo, no publiques.
+Tienen que dar **62 en verde**. Si algo está en rojo, no publiques.

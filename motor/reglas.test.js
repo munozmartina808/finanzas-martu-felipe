@@ -42,8 +42,8 @@ describe('El motor se encuentra adentro de la app', () => {
 
   test('hay UNA sola copia del motor: no quedó otra suelta por ahí', () => {
     // Si alguien vuelve a pegar el motor en otro lado, esto lo caza.
-    assert.equal((html.match(/function cicloDeFecha/g) || []).length, 1);
-    assert.equal((html.match(/function balanceMensual/g) || []).length, 1);
+    assert.equal((html.match(/function cicloDeFecha\(/g) || []).length, 1);
+    assert.equal((html.match(/function balanceMensual\(/g) || []).length, 1);
   });
 
   test('todas las funciones que las pruebas piden existen de verdad', () => {
