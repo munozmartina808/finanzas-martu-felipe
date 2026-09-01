@@ -1,0 +1,10 @@
+{
+  "name": "motor-finanzas",
+  "version": "1.0.0",
+  "description": "La matematica de la app Finanzas, con sus pruebas.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
